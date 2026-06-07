@@ -167,6 +167,52 @@ e rode `sudo ./scripts/harden-firewall.sh apply`. Aí **só** esses IPs alcança
 
 ---
 
+## 🩺 Não conecta? Modo de teste + diagnóstico
+
+Quando o jogo não conecta, primeiro **abra tudo** para isolar a causa e rode o diagnóstico.
+
+### 1. Suba em modo de teste (sem proteções)
+```bash
+sudo ./scripts/harden-firewall.sh remove                                   # tira o firewall
+docker compose -f docker-compose.yml -f docker-compose.test.yml up -d      # allowlist e online mode OFF
+```
+
+### 2. Rode o diagnóstico (na máquina do servidor)
+```bash
+./scripts/diagnose.sh
+```
+Ele confere: container rodando, log `Server started`, porta `19132/udp` escutando,
+allowlist/online mode, IP da LAN e se a blindagem está ativa.
+
+### 3. Teste na ordem certa (MUITO importante)
+1. **Primeiro na MESMA rede (WiFi):** no celular, conecte no **IP local** da máquina
+   (ex: `192.168.0.10`), porta `19132`. Se funcionar aqui, o servidor está ok e o
+   problema é o port forward/roteador.
+2. **Depois de fora:** **desligue o WiFi do celular** e use **4G/5G**, conectando no
+   **seu domínio**, porta `19132`.
+
+> ⚠️ **Erro mais comum:** testar o **domínio público de dentro da sua própria rede**.
+> A maioria dos roteadores domésticos não faz *NAT loopback*, então conectar ao seu
+> próprio IP público pela LAN **falha mesmo com o port forward correto**. Por isso teste
+> o domínio sempre pelo **4G** do celular, e dentro de casa use o **IP local**.
+
+### Causas comuns
+| Sintoma | Causa provável | O que fazer |
+|---|---|---|
+| Funciona no IP local, mas não no domínio | Port forward ausente/errado | Encaminhe **UDP 19132** no roteador; teste pelo 4G |
+| Não conecta nem no IP local | Servidor não subiu / ainda carregando | `./scripts/diagnose.sh`, veja o log |
+| "Você não tem permissão" / entra e cai | Allowlist barrando | Modo de teste, ou adicione o jogador na allowlist |
+| Conecta em casa mas amigo não | NAT loopback / firewall | Amigo testa de fora; `harden-firewall.sh remove` |
+
+### 4. Voltou a funcionar? Reative a proteção
+```bash
+docker compose -f docker-compose.yml up -d        # volta com allowlist + online mode
+sudo ./scripts/harden-firewall.sh apply           # reativa a blindagem
+```
+Lembre de **readicionar os jogadores na allowlist** (o XUID aparece no Console do painel).
+
+---
+
 ## 🌐 Acesso remoto ao painel (LAN)
 
 Para acessar o painel de outro computador da sua **rede local** (sem internet), no `.env`:

@@ -1,0 +1,29 @@
+# ===========================================================================
+# MODO DE TESTE — abre TODAS as proteções para diagnosticar conexão.
+#
+#   ⚠️  INSEGURO. Use só para testar e DEPOIS volte ao normal.
+#
+# Subir em modo de teste:
+#   docker compose -f docker-compose.yml -f docker-compose.test.yml up -d
+#
+# Voltar ao normal (com proteção):
+#   docker compose -f docker-compose.yml up -d
+#
+# Lembre de remover o firewall enquanto testa:
+#   sudo ./scripts/harden-firewall.sh remove
+# ===========================================================================
+services:
+  mc-bedrock:
+    environment:
+      # Desliga a allowlist: qualquer jogador entra.
+      - ALLOW_LIST=false
+      - WHITE_LIST=false
+      # Desliga a autenticação Xbox Live (aceita qualquer cliente).
+      - ONLINE_MODE=false
+      # Sem timeout de inatividade.
+      - PLAYER_IDLE_TIMEOUT=0
+
+  panel:
+    # Expõe o painel na LAN também durante o teste (porta 8080 em toda a rede).
+    ports:
+      - "0.0.0.0:8080:8080"
