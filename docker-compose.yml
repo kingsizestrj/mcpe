@@ -26,7 +26,8 @@ services:
       # Desliga jogadores inativos depois de N minutos (0 = desativado).
       - PLAYER_IDLE_TIMEOUT=${PLAYER_IDLE_TIMEOUT:-0}
     ports:
-      - "19132:19132/udp"
+      # Porta externa exposta no roteador (port forward). Interna sempre 19132.
+      - "${GAME_PORT:-19132}:19132/udp"
     volumes:
       - ./data:/data
     restart: unless-stopped

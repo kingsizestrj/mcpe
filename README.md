@@ -100,14 +100,82 @@ no primeiro login autenticado.
 
 ---
 
+## 🌍 Jogar remotamente pela internet (port forward seguro)
+
+Cenário: **IP público dinâmico + domínio atualizado pelo DDNS do roteador**, amigos
+no **celular**. A ideia é abrir só a porta do jogo e blindar a exposição, mantendo
+o painel **fechado** (só local).
+
+### Passo a passo
+
+**1. Abra a porta no roteador (port forward)**
+Encaminhe a porta **UDP `19132`** para o **IP local** da máquina do lab (ex: `192.168.0.10`).
+- Protocolo: **UDP** (não TCP)
+- Porta externa e interna: `19132`
+- O DDNS do seu roteador já mantém o domínio apontando para o IP atual. ✅
+
+**2. Confirme o online mode e a allowlist (já vêm ligados)**
+No `.env`, mantenha:
+```env
+ONLINE_MODE=true   # exige conta Xbox Live real (bloqueia clientes falsos)
+ALLOW_LIST=true    # só quem você liberar entra
+```
+Adicione seus amigos pelo painel (aba **Allowlist**) ou deixe-os tentar entrar uma
+vez: o **XUID** deles aparece no **Console** do painel — adicione por ali. Essa é a
+**autenticação real** do servidor.
+
+**3. Blinde a rede com o firewall (anti-flood/scan)**
+A porta fica visível na internet, então aplique o rate limiting por IP:
+```bash
+sudo ./scripts/harden-firewall.sh apply     # aplica
+sudo ./scripts/harden-firewall.sh status    # confere
+sudo ./scripts/harden-firewall.sh remove    # remove, se precisar
+```
+Ele limita pacotes por IP de origem (gameplay normal passa, flood é descartado) e
+descarta pacotes inválidos. Configurável no `.env` (`RATE_ABOVE`, `RATE_BURST`).
+
+> 🔁 **Reboot:** o Docker recria a chain de firewall ao reiniciar, então a blindagem
+> some. Para reaplicar automaticamente, instale o serviço systemd incluído:
+> `scripts/mc-bedrock-harden.service` (instruções dentro do arquivo). Ou rode
+> `sudo ./scripts/harden-firewall.sh apply` após cada reboot.
+
+**4. Conecte pelo celular**
+Minecraft Bedrock → **Jogar → Servidores → Adicionar servidor**:
+- **Endereço:** `seudominio.com` (o do DDNS)
+- **Porta:** `19132`
+
+### (Opcional) Travar ainda mais: só IPs conhecidos
+Se seus amigos tiverem IP relativamente fixo, no `.env`:
+```env
+ALLOW_IPS=203.0.113.5,198.51.100.7
+```
+e rode `sudo ./scripts/harden-firewall.sh apply`. Aí **só** esses IPs alcançam a porta
+— qualquer outro nem chega no servidor.
+
+### ✅ Checklist de segurança da exposição
+- [ ] Só a porta **`19132/udp`** está encaminhada no roteador (nada de TCP, nada do painel).
+- [ ] `ONLINE_MODE=true` e `ALLOW_LIST=true`.
+- [ ] Allowlist preenchida (de preferência por **XUID**).
+- [ ] `harden-firewall.sh apply` rodado (e systemd instalado para persistir).
+- [ ] Painel **NÃO** exposto: `PANEL_BIND=127.0.0.1` (acesso via túnel SSH).
+- [ ] Senha forte no painel e `SECRET_KEY` aleatória.
+- [ ] `OPS` só com os XUIDs de quem é admin de verdade.
+
+> ⚠️ **Nunca encaminhe a porta `8080` (painel) no roteador.** O painel controla o
+> Docker da máquina — se vazar, é game over. Acesse-o sempre por túnel SSH:
+> `ssh -L 8080:localhost:8080 usuario@seudominio.com` e abra `http://localhost:8080`.
+
+---
+
 ## 🌐 Acesso remoto ao painel (LAN)
 
-Para acessar o painel de outro computador da sua rede local, no `.env`:
+Para acessar o painel de outro computador da sua **rede local** (sem internet), no `.env`:
 ```env
 PANEL_BIND=0.0.0.0
 ```
 Depois `docker compose up -d`. Acesse `http://IP-DO-LAB:8080`.
-⚠️ Faça isso só em rede confiável e sempre com senha forte.
+⚠️ Faça isso só em rede confiável e sempre com senha forte. Para acesso pela
+internet, **não** use isto — use o túnel SSH descrito acima.
 
 ---
 
@@ -133,6 +201,9 @@ docker exec mc_bedrock_server send-command "say Olá do terminal!"
 ├── docker-compose.yml      # servidor Bedrock + painel
 ├── .env.example            # modelo de configuração (copie para .env)
 ├── data/                   # mundo, configs e allowlist (gerado, ignorado no git)
+├── scripts/
+│   ├── harden-firewall.sh        # blindagem de firewall (rate limit por IP)
+│   └── mc-bedrock-harden.service # systemd para reaplicar após reboot
 └── panel/                  # painel web (Flask)
     ├── Dockerfile
     ├── requirements.txt
