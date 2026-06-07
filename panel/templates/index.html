@@ -1,0 +1,105 @@
+<!DOCTYPE html>
+<html lang="pt-br">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Painel Bedrock</title>
+  <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+</head>
+<body>
+  <header class="topbar">
+    <h1>⛏️ Painel Bedrock</h1>
+    <div class="topbar-right">
+      <span id="status-pill" class="pill pill-unknown">verificando…</span>
+      <a class="btn btn-ghost" href="{{ url_for('logout') }}">Sair</a>
+    </div>
+  </header>
+
+  <main class="container">
+    <!-- Controle do servidor -->
+    <section class="card">
+      <h2>Servidor</h2>
+      <div class="stats">
+        <div><span class="stat-label">Estado</span><span id="stat-state">—</span></div>
+        <div><span class="stat-label">Uptime</span><span id="stat-uptime">—</span></div>
+        <div><span class="stat-label">Jogadores</span><span id="stat-players">—</span></div>
+      </div>
+      <div class="actions">
+        <button class="btn btn-green" data-action="start">▶ Iniciar</button>
+        <button class="btn btn-yellow" data-action="restart">⟳ Reiniciar</button>
+        <button class="btn btn-red" data-action="stop">■ Parar</button>
+        <button class="btn" id="btn-backup">⬇ Backup do mundo</button>
+      </div>
+    </section>
+
+    <!-- Jogadores online -->
+    <section class="card">
+      <h2>Jogadores online</h2>
+      <ul id="players-list" class="player-list"><li class="muted">—</li></ul>
+    </section>
+
+    <!-- Ações rápidas -->
+    <section class="card">
+      <h2>Ações rápidas</h2>
+      <div class="quick-grid">
+        <div class="quick-row">
+          <label>Mensagem (say)</label>
+          <div class="inline">
+            <input id="q-say" type="text" placeholder="Olá a todos!">
+            <button class="btn" data-quick="say" data-from="q-say">Enviar</button>
+          </div>
+        </div>
+        <div class="quick-row">
+          <label>Tempo</label>
+          <div class="inline">
+            <button class="btn" data-quick="time" data-value="day">Dia</button>
+            <button class="btn" data-quick="time" data-value="night">Noite</button>
+            <button class="btn" data-quick="time" data-value="noon">Meio-dia</button>
+          </div>
+        </div>
+        <div class="quick-row">
+          <label>Clima</label>
+          <div class="inline">
+            <button class="btn" data-quick="weather" data-value="clear">Limpo</button>
+            <button class="btn" data-quick="weather" data-value="rain">Chuva</button>
+            <button class="btn" data-quick="weather" data-value="thunder">Tempestade</button>
+          </div>
+        </div>
+        <div class="quick-row">
+          <label>Dificuldade</label>
+          <div class="inline">
+            <button class="btn" data-quick="difficulty" data-value="peaceful">Pacífico</button>
+            <button class="btn" data-quick="difficulty" data-value="easy">Fácil</button>
+            <button class="btn" data-quick="difficulty" data-value="normal">Normal</button>
+            <button class="btn" data-quick="difficulty" data-value="hard">Difícil</button>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- Allowlist -->
+    <section class="card">
+      <h2>Allowlist (lista de permitidos)</h2>
+      <p class="muted">Só quem está aqui consegue entrar (proteção principal do servidor).</p>
+      <div class="inline">
+        <input id="allow-name" type="text" placeholder="Gamertag do jogador">
+        <button class="btn btn-green" id="allow-add">Adicionar</button>
+      </div>
+      <ul id="allow-list" class="player-list"><li class="muted">—</li></ul>
+    </section>
+
+    <!-- Console -->
+    <section class="card">
+      <h2>Console</h2>
+      <pre id="console" class="console">carregando logs…</pre>
+      <div class="inline">
+        <input id="cmd" type="text" placeholder="Digite um comando (ex: gamerule keepInventory true)">
+        <button class="btn" id="cmd-send">Enviar</button>
+      </div>
+    </section>
+  </main>
+
+  <div id="toast" class="toast"></div>
+  <script src="{{ url_for('static', filename='app.js') }}"></script>
+</body>
+</html>

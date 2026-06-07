@@ -1,0 +1,60 @@
+services:
+  # ---------------------------------------------------------------------------
+  # Servidor Minecraft Bedrock (itzg/minecraft-bedrock-server)
+  # ---------------------------------------------------------------------------
+  mc-bedrock:
+    image: itzg/minecraft-bedrock-server
+    container_name: mc_bedrock_server
+    environment:
+      - EULA=TRUE
+      - GAMEMODE=${GAMEMODE:-survival}
+      - DIFFICULTY=${DIFFICULTY:-normal}
+      - SERVER_NAME=${SERVER_NAME:-Meu Servidor Local}
+      - LEVEL_NAME=${LEVEL_NAME:-world}
+      - MAX_PLAYERS=${MAX_PLAYERS:-10}
+
+      # ----- Proteção / controle de acesso -----
+      # Allowlist (lista de permitidos). Só quem está na lista entra.
+      - ALLOW_LIST=${ALLOW_LIST:-true}
+      # Lista inicial de jogadores permitidos: "Gamertag:XUID,OutroGamertag:XUID"
+      # Pode deixar vazio e adicionar pelo painel depois.
+      - ALLOW_LIST_USERS=${ALLOW_LIST_USERS:-}
+      # Exige autenticação na conta Xbox Live (impede contas falsas/piratas).
+      - ONLINE_MODE=${ONLINE_MODE:-true}
+      # Operadores (admin no jogo). Formato: "Gamertag:XUID" ou só XUIDs.
+      - OPS=${OPS:-}
+      # Desliga jogadores inativos depois de N minutos (0 = desativado).
+      - PLAYER_IDLE_TIMEOUT=${PLAYER_IDLE_TIMEOUT:-0}
+    ports:
+      - "19132:19132/udp"
+    volumes:
+      - ./data:/data
+    restart: unless-stopped
+    # Mantém o stdin aberto para que o painel consiga enviar comandos ao console.
+    stdin_open: true
+    tty: true
+
+  # ---------------------------------------------------------------------------
+  # Painel Web de controle
+  # ---------------------------------------------------------------------------
+  panel:
+    build: ./panel
+    container_name: mc_bedrock_panel
+    environment:
+      - BEDROCK_CONTAINER=mc_bedrock_server
+      - ADMIN_USER=${ADMIN_USER:-admin}
+      - ADMIN_PASSWORD=${ADMIN_PASSWORD:-troque-esta-senha}
+      - SECRET_KEY=${SECRET_KEY:-troque-esta-chave-secreta}
+      - DATA_DIR=/data
+    ports:
+      # Por padrão escuta só no localhost (127.0.0.1) por segurança.
+      # Para acessar de outra máquina da LAN, troque por "8080:8080" no .env.
+      - "${PANEL_BIND:-127.0.0.1}:${PANEL_PORT:-8080}:8080"
+    volumes:
+      # Acesso ao Docker para iniciar/parar/enviar comandos ao servidor.
+      - /var/run/docker.sock:/var/run/docker.sock
+      # Acesso aos dados do servidor (allowlist.json, server.properties, backups).
+      - ./data:/data
+    depends_on:
+      - mc-bedrock
+    restart: unless-stopped
