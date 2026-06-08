@@ -152,27 +152,58 @@ def send_command(command: str, capture: bool = False, wait: float = 0.6):
     return {"ok": exit_code == 0, "output": output, "exit_code": exit_code}
 
 
-PLAYER_LIST_RE = re.compile(r"players online:\s*(.*)", re.IGNORECASE)
-PLAYER_COUNT_RE = re.compile(r"There are\s*(\d+)\s*/\s*(\d+)", re.IGNORECASE)
+# Eventos de entrada/saída que o Bedrock escreve no log, ex:
+#   [INFO] Player connected: Steve, xuid: 2535...
+#   [INFO] Player disconnected: Steve, xuid: 2535...
+CONNECT_RE = re.compile(r"Player connected:\s*(.+?),\s*xuid:\s*(\S+)", re.IGNORECASE)
+DISCONNECT_RE = re.compile(r"Player disconnected:\s*(.+?),\s*xuid:\s*(\S+)", re.IGNORECASE)
+
+
+def _max_players():
+    """Lê max-players do server.properties (0 se indisponível)."""
+    props = os.path.join(DATA_DIR, "server.properties")
+    try:
+        with open(props, "r", encoding="utf-8") as fh:
+            for line in fh:
+                if line.startswith("max-players="):
+                    return int(line.strip().split("=", 1)[1])
+    except Exception:  # noqa: BLE001
+        pass
+    return 0
 
 
 def list_players():
-    """Envia `list` e tenta interpretar a contagem/nomes dos jogadores."""
-    res = send_command("list", capture=True, wait=0.8)
-    if not res.get("ok"):
-        return {"online": 0, "max": 0, "names": [], "raw": res.get("error", "")}
+    """
+    Determina os jogadores online a partir dos eventos connect/disconnect
+    no log do servidor — sem enviar nenhum comando ao console.
 
-    text = res.get("output", "")
-    online, maximum, names = 0, 0, []
-    count_match = PLAYER_COUNT_RE.search(text)
-    if count_match:
-        online = int(count_match.group(1))
-        maximum = int(count_match.group(2))
-    names_match = PLAYER_LIST_RE.search(text)
-    if names_match:
-        raw_names = names_match.group(1).strip()
-        names = [n.strip() for n in raw_names.split(",") if n.strip()]
-    return {"online": online, "max": maximum, "names": names, "raw": text}
+    Vantagens sobre enviar `list` a cada atualização:
+      - Não causa "pisca-pisca" (estado estável e determinístico).
+      - Não polui o console com respostas repetidas de `list`.
+    """
+    container = get_container()
+    if container is None or container.status != "running":
+        return {"online": 0, "max": 0, "names": []}
+
+    try:
+        raw = container.logs(tail=5000, timestamps=False).decode("utf-8", "replace")
+    except Exception:  # noqa: BLE001
+        return {"online": 0, "max": 0, "names": []}
+
+    # Reproduz os eventos em ordem; quem entrou e não saiu fica online.
+    # Chaveado por XUID (estável), guardando o nome para exibição.
+    online = {}  # xuid -> name (dict mantém ordem de entrada)
+    for line in raw.splitlines():
+        mc = CONNECT_RE.search(line)
+        if mc:
+            online[mc.group(2)] = mc.group(1).strip()
+            continue
+        md = DISCONNECT_RE.search(line)
+        if md:
+            online.pop(md.group(2), None)
+
+    names = list(online.values())
+    return {"online": len(names), "max": _max_players(), "names": names}
 
 
 def allowlist_path():
