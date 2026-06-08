@@ -6,6 +6,7 @@
 
 # Backups
 *.tar.gz
+/backups/
 
 # Python
 __pycache__/

@@ -15,4 +15,5 @@ COPY . .
 EXPOSE 8080
 
 # Gunicorn serve o app Flask em produção.
-CMD ["gunicorn", "--bind", "0.0.0.0:8080", "--workers", "2", "--threads", "4", "app:app"]
+# 1 worker (+ threads) para que o agendador de backups rode em instância única.
+CMD ["gunicorn", "--bind", "0.0.0.0:8080", "--workers", "1", "--threads", "8", "app:app"]

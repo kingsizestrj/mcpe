@@ -7,27 +7,16 @@ services:
     container_name: mc_bedrock_server
     environment:
       - EULA=TRUE
-      - GAMEMODE=${GAMEMODE:-survival}
-      - DIFFICULTY=${DIFFICULTY:-normal}
-      - SERVER_NAME=${SERVER_NAME:-Meu Servidor Local}
-      - LEVEL_NAME=${LEVEL_NAME:-world}
-      - MAX_PLAYERS=${MAX_PLAYERS:-10}
-
-      # ----- Proteção / controle de acesso -----
-      # A allowlist (allow-list) NÃO é forçada aqui de propósito: ela é
-      # controlada pelo PAINEL (botão liga/desliga) e persistida no
-      # server.properties. Assim o estado do painel sobrevive a reinícios.
-      # (Se quiser forçar um padrão fixo, adicione: - ALLOW_LIST=true)
+      # IMPORTANTE: a maioria das configurações (gamemode, dificuldade, nome,
+      # mundo, max-players, online-mode, idle-timeout, allow-list) é gerenciada
+      # pelo PAINEL e persistida no server.properties. Por isso NÃO as definimos
+      # aqui — senão um restart do container sobrescreveria as edições do painel.
       #
-      # Lista inicial de jogadores permitidos: "Gamertag:XUID,OutroGamertag:XUID"
-      # Pode deixar vazio e adicionar pelo painel depois.
+      # Seeds de inicialização (aplicados só na 1ª subida; não conflitam):
+      # Lista inicial de permitidos: "Gamertag:XUID,OutroGamertag:XUID"
       - ALLOW_LIST_USERS=${ALLOW_LIST_USERS:-}
-      # Exige autenticação na conta Xbox Live (impede contas falsas/piratas).
-      - ONLINE_MODE=${ONLINE_MODE:-true}
       # Operadores (admin no jogo). Formato: "Gamertag:XUID" ou só XUIDs.
       - OPS=${OPS:-}
-      # Desliga jogadores inativos depois de N minutos (0 = desativado).
-      - PLAYER_IDLE_TIMEOUT=${PLAYER_IDLE_TIMEOUT:-0}
     ports:
       # Porta externa exposta no roteador (port forward). Interna sempre 19132.
       - "${GAME_PORT:-19132}:19132/udp"
@@ -50,6 +39,12 @@ services:
       - ADMIN_PASSWORD=${ADMIN_PASSWORD:-troque-esta-senha}
       - SECRET_KEY=${SECRET_KEY:-troque-esta-chave-secreta}
       - DATA_DIR=/data
+      # Backups
+      - BACKUP_DIR=/backups
+      # Intervalo dos backups automáticos em horas (0 = desativado).
+      - BACKUP_INTERVAL_HOURS=${BACKUP_INTERVAL_HOURS:-0}
+      # Quantos backups manter (apaga os mais antigos).
+      - BACKUP_KEEP=${BACKUP_KEEP:-7}
     ports:
       # Por padrão escuta só no localhost (127.0.0.1) por segurança.
       # Para acessar de outra máquina da LAN, troque por "8080:8080" no .env.
@@ -57,8 +52,10 @@ services:
     volumes:
       # Acesso ao Docker para iniciar/parar/enviar comandos ao servidor.
       - /var/run/docker.sock:/var/run/docker.sock
-      # Acesso aos dados do servidor (allowlist.json, server.properties, backups).
+      # Acesso aos dados do servidor (allowlist.json, server.properties, mundo).
       - ./data:/data
+      # Onde os backups são gravados (fora de ./data para não se auto-incluir).
+      - ./backups:/backups
     depends_on:
       - mc-bedrock
     restart: unless-stopped

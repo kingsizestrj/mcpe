@@ -168,6 +168,34 @@ button[type="submit"] {
   color: #6ee787;
 }
 
+/* ---------- Editor de propriedades ---------- */
+.props-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+  gap: 12px;
+  margin-bottom: 14px;
+}
+.props-grid .field { display: flex; flex-direction: column; gap: 5px; }
+.props-grid label { font-size: .8rem; color: var(--muted); }
+.props-grid input[type="text"],
+.props-grid input[type="number"],
+.props-grid select {
+  padding: 8px 10px;
+  border-radius: 8px;
+  border: 1px solid var(--border);
+  background: var(--card-2);
+  color: var(--text);
+}
+.props-grid .field-bool {
+  flex-direction: row;
+  align-items: center;
+  gap: 8px;
+}
+
+/* ---------- Backups ---------- */
+.backup-meta { font-size: .75rem; color: var(--muted); }
+.player-list .bname { display: flex; flex-direction: column; }
+
 /* ---------- Console ---------- */
 .console {
   background: #0a0e12;

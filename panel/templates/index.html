@@ -28,7 +28,6 @@
         <button class="btn btn-green" data-action="start">▶ Iniciar</button>
         <button class="btn btn-yellow" data-action="restart">⟳ Reiniciar</button>
         <button class="btn btn-red" data-action="stop">■ Parar</button>
-        <button class="btn" id="btn-backup">⬇ Backup do mundo</button>
       </div>
     </section>
 
@@ -103,6 +102,28 @@
         <p class="muted">Quem já tentou entrar (com XUID). Clique para adicionar à allowlist.</p>
         <ul id="seen-list" class="player-list"><li class="muted">Clique em Atualizar</li></ul>
       </div>
+    </section>
+
+    <!-- Configurações do servidor (server.properties) -->
+    <section class="card">
+      <h2>Configurações do servidor</h2>
+      <p class="muted">Editam o <code>server.properties</code>. A maioria só vale
+        após reiniciar o servidor.</p>
+      <div id="props-form" class="props-grid"><span class="muted">carregando…</span></div>
+      <div class="actions">
+        <button class="btn btn-green" id="props-save">💾 Salvar e reiniciar</button>
+        <button class="btn" id="props-save-norestart">Salvar sem reiniciar</button>
+      </div>
+    </section>
+
+    <!-- Backups -->
+    <section class="card">
+      <div class="card-head">
+        <h2>Backups</h2>
+        <button class="btn btn-green" id="backup-create">+ Criar backup agora</button>
+      </div>
+      <p class="muted" id="backup-info">—</p>
+      <ul id="backup-list" class="player-list"><li class="muted">—</li></ul>
     </section>
 
     <!-- Console -->

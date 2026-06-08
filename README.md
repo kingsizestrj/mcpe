@@ -63,8 +63,12 @@ No Minecraft Bedrock → **Jogar → Servidores → Adicionar servidor**:
   bloco **"Vistos no console"** para adicionar com 1 clique quem já tentou entrar
   (mostrando o **XUID**).
 - **Ações rápidas**: mensagem (`say`), tempo, clima, dificuldade.
+- **Configurações do servidor**: editor do `server.properties` pela UI (nome,
+  gamemode, dificuldade, mundo, seed, max-players, online-mode, view-distance,
+  permissão padrão…) com "Salvar e reiniciar".
+- **Backups**: criar agora, **backups automáticos agendados** com retenção,
+  **baixar**, **restaurar** (com backup de segurança automático antes) e apagar.
 - **Console ao vivo** + envio de qualquer comando (ex: `gamerule keepInventory true`).
-- **Backup do mundo** em `.tar.gz` (faz `save hold`/`save resume` automaticamente).
 
 ---
 
@@ -228,6 +232,26 @@ internet, **não** use isto — use o túnel SSH descrito acima.
 
 ---
 
+## 💾 Backups
+
+Os backups ficam na pasta `./backups` (volume separado, fora de `./data` para não
+se auto-incluírem). Gerencie tudo pelo painel: criar, baixar, restaurar e apagar.
+
+**Backups automáticos** — no `.env`:
+```env
+BACKUP_INTERVAL_HOURS=24   # a cada 24h (0 = desativado)
+BACKUP_KEEP=7              # mantém os 7 mais recentes
+```
+- Antes de cada backup o painel faz `save hold`/`save resume` para um mundo consistente.
+- A **restauração** para o servidor, troca os dados e religa — e cria um **backup de
+  segurança do estado atual** automaticamente antes de sobrescrever.
+
+> O editor de configurações e a allowlist gravam no `server.properties`. Por isso o
+> `docker-compose.yml` **não** define mais `GAMEMODE`, `DIFFICULTY`, `ONLINE_MODE`,
+> etc. via env (senão um restart sobrescreveria o que você ajustou no painel).
+
+---
+
 ## 🛠️ Comandos úteis
 
 ```bash
@@ -250,6 +274,7 @@ docker exec mc_bedrock_server send-command "say Olá do terminal!"
 ├── docker-compose.yml      # servidor Bedrock + painel
 ├── .env.example            # modelo de configuração (copie para .env)
 ├── data/                   # mundo, configs e allowlist (gerado, ignorado no git)
+├── backups/                # backups .tar.gz do mundo (gerado, ignorado no git)
 ├── scripts/
 │   ├── harden-firewall.sh        # blindagem de firewall (rate limit por IP)
 │   └── mc-bedrock-harden.service # systemd para reaplicar após reboot

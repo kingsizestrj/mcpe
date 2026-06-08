@@ -8,34 +8,37 @@ Funcionalidades:
   - Console ao vivo (logs) e envio de comandos arbitrários.
   - Gerenciamento da allowlist (lista de permitidos).
   - Ações rápidas: say, kick, tempo, clima, dificuldade, gamemode.
-  - Backup do mundo.
+  - Editor do server.properties.
+  - Backups do mundo (manuais, agendados, restauração).
 
 O painel fala com o servidor usando o socket do Docker, executando o script
 `send-command` (que já vem na imagem do Bedrock) dentro do container.
 """
 
 import functools
-import io
 import json
 import os
 import re
+import shutil
 import tarfile
+import threading
 import time
 from datetime import datetime, timezone
 
 import docker
 from flask import (
     Flask,
-    Response,
     flash,
     jsonify,
     redirect,
     render_template,
     request,
+    send_file,
     session,
     url_for,
 )
 from werkzeug.security import check_password_hash, generate_password_hash
+from werkzeug.utils import secure_filename
 
 # --------------------------------------------------------------------------- #
 # Configuração
@@ -45,6 +48,11 @@ ADMIN_USER = os.environ.get("ADMIN_USER", "admin")
 ADMIN_PASSWORD = os.environ.get("ADMIN_PASSWORD", "troque-esta-senha")
 DATA_DIR = os.environ.get("DATA_DIR", "/data")
 SECRET_KEY = os.environ.get("SECRET_KEY", "troque-esta-chave-secreta")
+
+# Backups
+BACKUP_DIR = os.environ.get("BACKUP_DIR", "/backups")
+BACKUP_INTERVAL_HOURS = float(os.environ.get("BACKUP_INTERVAL_HOURS", "0") or 0)
+BACKUP_KEEP = int(os.environ.get("BACKUP_KEEP", "7") or 7)
 
 # Guarda apenas o hash da senha em memória.
 ADMIN_PASSWORD_HASH = generate_password_hash(ADMIN_PASSWORD)
@@ -511,36 +519,248 @@ def api_quick():
     return jsonify(send_command(mapping[kind](value), capture=True))
 
 
-@app.route("/api/backup", methods=["POST"])
+# --------------------------------------------------------------------------- #
+# Editor do server.properties
+# --------------------------------------------------------------------------- #
+# Campos editáveis pela UI (whitelist — só estas chaves podem ser gravadas).
+# server-port é omitido de propósito: mudar quebraria o mapeamento do Docker.
+PROPERTY_FIELDS = [
+    {"key": "server-name", "label": "Nome do servidor", "type": "text"},
+    {"key": "gamemode", "label": "Modo de jogo", "type": "select",
+     "options": ["survival", "creative", "adventure"]},
+    {"key": "difficulty", "label": "Dificuldade", "type": "select",
+     "options": ["peaceful", "easy", "normal", "hard"]},
+    {"key": "max-players", "label": "Máx. de jogadores", "type": "number"},
+    {"key": "level-name", "label": "Nome do mundo", "type": "text"},
+    {"key": "level-seed", "label": "Seed do mundo (vazio = aleatória)", "type": "text"},
+    {"key": "allow-cheats", "label": "Permitir cheats", "type": "bool"},
+    {"key": "online-mode", "label": "Online mode (exige conta Xbox)", "type": "bool"},
+    {"key": "view-distance", "label": "Distância de visão (chunks)", "type": "number"},
+    {"key": "tick-distance", "label": "Tick distance (4–12)", "type": "number"},
+    {"key": "player-idle-timeout", "label": "Timeout de inatividade (min, 0=off)", "type": "number"},
+    {"key": "default-player-permission-level", "label": "Permissão padrão", "type": "select",
+     "options": ["visitor", "member", "operator"]},
+]
+ALLOWED_PROP_KEYS = {f["key"] for f in PROPERTY_FIELDS}
+
+
+@app.route("/api/properties", methods=["GET"])
 @login_required
-def api_backup():
-    """Cria um .tar.gz do diretório de dados e devolve para download."""
+def api_properties_get():
+    values = {f["key"]: (get_prop(f["key"], "") or "") for f in PROPERTY_FIELDS}
+    return jsonify({"fields": PROPERTY_FIELDS, "values": values})
+
+
+@app.route("/api/properties", methods=["POST"])
+@login_required
+def api_properties_post():
+    data = request.get_json(silent=True) or {}
+    props = data.get("props") or {}
+    do_restart = bool(data.get("restart"))
+
+    changed = []
+    for key, value in props.items():
+        if key not in ALLOWED_PROP_KEYS:
+            continue  # ignora chaves fora da whitelist (segurança)
+        value = str(value).strip().replace("\n", "").replace("\r", "")
+        if set_prop(key, value):
+            changed.append(key)
+
+    if not changed:
+        return jsonify({"ok": False, "error": "nada para salvar"}), 400
+
+    restarted = False
+    if do_restart:
+        container = get_container()
+        if container is not None:
+            try:
+                container.restart(timeout=30)
+                restarted = True
+            except Exception as exc:  # noqa: BLE001
+                return jsonify({"ok": True, "changed": changed,
+                                "restarted": False, "warn": str(exc)})
+    return jsonify({"ok": True, "changed": changed, "restarted": restarted})
+
+
+# --------------------------------------------------------------------------- #
+# Backups (manuais, agendados, restauração)
+# --------------------------------------------------------------------------- #
+_backup_lock = threading.Lock()
+
+
+def _safe_backup_path(name):
+    """Resolve um nome de backup para um caminho seguro dentro de BACKUP_DIR."""
+    safe = secure_filename(name or "")
+    if not safe.endswith(".tar.gz"):
+        return None
+    path = os.path.join(BACKUP_DIR, safe)
+    if os.path.dirname(os.path.abspath(path)) != os.path.abspath(BACKUP_DIR):
+        return None
+    return path
+
+
+def make_backup():
+    """Cria um .tar.gz de DATA_DIR em BACKUP_DIR. Retorna o caminho."""
+    with _backup_lock:
+        os.makedirs(BACKUP_DIR, exist_ok=True)
+        # Garante consistência do mundo durante a cópia.
+        held = send_command("save hold")
+        if held.get("ok"):
+            time.sleep(2)
+        stamp = datetime.now().strftime("%Y%m%d-%H%M%S")
+        path = os.path.join(BACKUP_DIR, f"bedrock-{stamp}.tar.gz")
+        try:
+            with tarfile.open(path, "w:gz") as tar:
+                tar.add(DATA_DIR, arcname="data")
+        finally:
+            send_command("save resume")
+        _prune_backups()
+        return path
+
+
+def _prune_backups():
+    """Mantém apenas os BACKUP_KEEP backups mais recentes."""
+    try:
+        files = sorted(
+            (os.path.join(BACKUP_DIR, f) for f in os.listdir(BACKUP_DIR)
+             if f.endswith(".tar.gz")),
+            key=os.path.getmtime, reverse=True,
+        )
+        for old in files[BACKUP_KEEP:]:
+            os.remove(old)
+    except Exception:  # noqa: BLE001
+        pass
+
+
+def list_backups():
+    if not os.path.isdir(BACKUP_DIR):
+        return []
+    items = []
+    for f in os.listdir(BACKUP_DIR):
+        if not f.endswith(".tar.gz"):
+            continue
+        p = os.path.join(BACKUP_DIR, f)
+        try:
+            st = os.stat(p)
+            items.append({"name": f, "size": st.st_size, "mtime": int(st.st_mtime)})
+        except Exception:  # noqa: BLE001
+            continue
+    return sorted(items, key=lambda x: x["mtime"], reverse=True)
+
+
+@app.route("/api/backups", methods=["GET"])
+@login_required
+def api_backups_list():
+    return jsonify({
+        "backups": list_backups(),
+        "auto_hours": BACKUP_INTERVAL_HOURS,
+        "keep": BACKUP_KEEP,
+    })
+
+
+@app.route("/api/backups/create", methods=["POST"])
+@login_required
+def api_backups_create():
     if not os.path.isdir(DATA_DIR):
         return jsonify({"ok": False, "error": "DATA_DIR não encontrado"}), 404
+    try:
+        path = make_backup()
+    except Exception as exc:  # noqa: BLE001
+        return jsonify({"ok": False, "error": str(exc)}), 500
+    return jsonify({"ok": True, "name": os.path.basename(path)})
 
-    # Salva o mundo antes do backup, se estiver rodando.
-    send_command("save hold")
-    time.sleep(1)
 
-    buffer = io.BytesIO()
-    with tarfile.open(fileobj=buffer, mode="w:gz") as tar:
-        tar.add(DATA_DIR, arcname="data")
-    buffer.seek(0)
+@app.route("/api/backups/download")
+@login_required
+def api_backups_download():
+    path = _safe_backup_path(request.args.get("name"))
+    if not path or not os.path.exists(path):
+        return jsonify({"ok": False, "error": "backup não encontrado"}), 404
+    return send_file(path, as_attachment=True, download_name=os.path.basename(path))
 
-    send_command("save resume")
 
-    stamp = datetime.now().strftime("%Y%m%d-%H%M%S")
-    filename = f"bedrock-backup-{stamp}.tar.gz"
-    return Response(
-        buffer.getvalue(),
-        mimetype="application/gzip",
-        headers={"Content-Disposition": f"attachment; filename={filename}"},
-    )
+@app.route("/api/backups/delete", methods=["POST"])
+@login_required
+def api_backups_delete():
+    data = request.get_json(silent=True) or {}
+    path = _safe_backup_path(data.get("name"))
+    if not path or not os.path.exists(path):
+        return jsonify({"ok": False, "error": "backup não encontrado"}), 404
+    try:
+        os.remove(path)
+    except Exception as exc:  # noqa: BLE001
+        return jsonify({"ok": False, "error": str(exc)}), 500
+    return jsonify({"ok": True})
+
+
+@app.route("/api/backups/restore", methods=["POST"])
+@login_required
+def api_backups_restore():
+    """Restaura um backup: para o servidor, troca os dados e reinicia."""
+    data = request.get_json(silent=True) or {}
+    path = _safe_backup_path(data.get("name"))
+    if not path or not os.path.exists(path):
+        return jsonify({"ok": False, "error": "backup não encontrado"}), 404
+
+    container = get_container()
+    was_running = container is not None and container.status == "running"
+
+    # Backup de segurança do estado atual antes de sobrescrever.
+    try:
+        make_backup()
+    except Exception:  # noqa: BLE001
+        pass
+
+    try:
+        if container is not None and was_running:
+            container.stop(timeout=30)
+
+        # Limpa DATA_DIR e extrai o backup (removendo o prefixo "data/").
+        for entry in os.listdir(DATA_DIR):
+            full = os.path.join(DATA_DIR, entry)
+            shutil.rmtree(full) if os.path.isdir(full) else os.remove(full)
+
+        with tarfile.open(path, "r:gz") as tar:
+            for member in tar.getmembers():
+                if member.name == "data":
+                    continue
+                if member.name.startswith("data/"):
+                    member.name = member.name[len("data/"):]
+                if not member.name:
+                    continue
+                tar.extract(member, DATA_DIR, filter="data")
+    except Exception as exc:  # noqa: BLE001
+        return jsonify({"ok": False, "error": f"falha ao restaurar: {exc}"}), 500
+    finally:
+        # Só religa se estava rodando antes (não inicia um servidor parado).
+        if container is not None and was_running:
+            try:
+                container.start()
+            except Exception:  # noqa: BLE001
+                pass
+
+    return jsonify({"ok": True, "restored": os.path.basename(path)})
+
+
+def _backup_scheduler():
+    """Loop em background que cria backups a cada BACKUP_INTERVAL_HOURS."""
+    interval = BACKUP_INTERVAL_HOURS * 3600
+    while True:
+        time.sleep(interval)
+        try:
+            make_backup()
+        except Exception:  # noqa: BLE001
+            pass
 
 
 @app.route("/healthz")
 def healthz():
     return "ok", 200
+
+
+# Inicia o agendador de backups (1 worker no gunicorn -> 1 agendador).
+if BACKUP_INTERVAL_HOURS > 0:
+    threading.Thread(target=_backup_scheduler, daemon=True).start()
 
 
 if __name__ == "__main__":

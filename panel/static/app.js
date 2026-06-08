@@ -277,31 +277,152 @@ $("#allow-add").onclick = () => {
   allowAction("add", name);
 };
 
-$("#btn-backup").onclick = async () => {
-  toast("Gerando backup… aguarde");
-  try {
-    const res = await api("/api/backup", { method: "POST" });
-    if (!res.ok) {
-      const j = await res.json().catch(() => ({}));
-      return toast(`Erro: ${j.error || "falha no backup"}`, true);
-    }
-    const blob = await res.blob();
-    const cd = res.headers.get("Content-Disposition") || "";
-    const match = cd.match(/filename=([^;]+)/);
-    const filename = match ? match[1].trim() : "bedrock-backup.tar.gz";
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement("a");
-    a.href = url;
-    a.download = filename;
-    a.click();
-    URL.revokeObjectURL(url);
-    toast("Backup baixado!");
-  } catch (e) {
-    toast("Erro no backup", true);
-  }
-};
-
 $("#seen-refresh").onclick = refreshSeen;
+
+// --------------------------------------------------------------------------- //
+// Configurações do servidor (server.properties)
+// --------------------------------------------------------------------------- //
+async function loadProperties() {
+  const form = $("#props-form");
+  try {
+    const res = await api("/api/properties");
+    const data = await res.json();
+    form.innerHTML = "";
+    (data.fields || []).forEach((f) => {
+      const val = (data.values || {})[f.key] ?? "";
+      const wrap = document.createElement("div");
+      wrap.className = "field" + (f.type === "bool" ? " field-bool" : "");
+      let control;
+      if (f.type === "select") {
+        control = document.createElement("select");
+        (f.options || []).forEach((opt) => {
+          const o = document.createElement("option");
+          o.value = opt; o.textContent = opt;
+          if (String(val) === opt) o.selected = true;
+          control.appendChild(o);
+        });
+      } else if (f.type === "bool") {
+        control = document.createElement("input");
+        control.type = "checkbox";
+        control.checked = String(val).toLowerCase() === "true";
+      } else {
+        control = document.createElement("input");
+        control.type = f.type === "number" ? "number" : "text";
+        control.value = val;
+      }
+      control.id = "prop-" + f.key;
+      control.dataset.key = f.key;
+      control.dataset.type = f.type;
+      const label = document.createElement("label");
+      label.textContent = f.label;
+      label.htmlFor = control.id;
+      if (f.type === "bool") { wrap.appendChild(control); wrap.appendChild(label); }
+      else { wrap.appendChild(label); wrap.appendChild(control); }
+      form.appendChild(wrap);
+    });
+  } catch (e) {
+    form.innerHTML = '<span class="muted">Erro ao carregar configurações</span>';
+  }
+}
+
+function collectProperties() {
+  const props = {};
+  document.querySelectorAll("#props-form [data-key]").forEach((el) => {
+    if (el.dataset.type === "bool") props[el.dataset.key] = el.checked ? "true" : "false";
+    else props[el.dataset.key] = el.value;
+  });
+  return props;
+}
+
+async function saveProperties(restart) {
+  if (restart && !confirm("Salvar e REINICIAR o servidor? Os jogadores cairão por alguns segundos.")) return;
+  const r = await postJSON("/api/properties", { props: collectProperties(), restart });
+  if (r.ok) {
+    toast(restart ? "Salvo. Reiniciando servidor…" : `Salvo (${(r.changed || []).length} campos)`);
+    if (restart) { setTimeout(refreshStatus, 2000); setTimeout(refreshLogs, 2500); }
+  } else {
+    toast(`Erro: ${r.error || "falha"}`, true);
+  }
+}
+$("#props-save").onclick = () => saveProperties(true);
+$("#props-save-norestart").onclick = () => saveProperties(false);
+
+// --------------------------------------------------------------------------- //
+// Backups
+// --------------------------------------------------------------------------- //
+function fmtBytes(b) {
+  if (!b) return "0 B";
+  const u = ["B", "KB", "MB", "GB"];
+  const i = Math.floor(Math.log(b) / Math.log(1024));
+  return `${(b / Math.pow(1024, i)).toFixed(1)} ${u[i]}`;
+}
+function fmtDate(ts) {
+  return new Date(ts * 1000).toLocaleString("pt-BR");
+}
+
+async function refreshBackups() {
+  const list = $("#backup-list");
+  try {
+    const res = await api("/api/backups");
+    const data = await res.json();
+    const auto = data.auto_hours > 0
+      ? `Automático: a cada ${data.auto_hours}h (mantém ${data.keep}).`
+      : "Automático: desativado (defina BACKUP_INTERVAL_HOURS no .env).";
+    $("#backup-info").textContent = auto;
+    const backups = data.backups || [];
+    if (backups.length === 0) {
+      list.innerHTML = '<li class="muted">Nenhum backup ainda</li>';
+      return;
+    }
+    list.innerHTML = "";
+    backups.forEach((b) => {
+      const li = document.createElement("li");
+      const info = document.createElement("div");
+      info.className = "bname";
+      info.innerHTML = `<span>${b.name}</span><span class="backup-meta">${fmtDate(b.mtime)} · ${fmtBytes(b.size)}</span>`;
+      li.appendChild(info);
+      const actions = document.createElement("div");
+      actions.className = "row-actions";
+      const dl = document.createElement("a");
+      dl.className = "btn"; dl.textContent = "⬇";
+      dl.href = `/api/backups/download?name=${encodeURIComponent(b.name)}`;
+      const rs = document.createElement("button");
+      rs.className = "btn btn-yellow"; rs.textContent = "Restaurar";
+      rs.onclick = () => restoreBackup(b.name);
+      const del = document.createElement("button");
+      del.className = "btn btn-red"; del.textContent = "🗑";
+      del.onclick = () => deleteBackup(b.name);
+      actions.append(dl, rs, del);
+      li.appendChild(actions);
+      list.appendChild(li);
+    });
+  } catch (e) {
+    list.innerHTML = '<li class="muted">Erro ao carregar</li>';
+  }
+}
+
+async function restoreBackup(name) {
+  if (!confirm(`RESTAURAR "${name}"?\n\nIsto substitui o mundo atual e reinicia o servidor. Um backup de segurança do estado atual é criado antes.`)) return;
+  toast("Restaurando… aguarde");
+  const r = await postJSON("/api/backups/restore", { name });
+  toast(r.ok ? "Backup restaurado!" : `Erro: ${r.error || "falha"}`, !r.ok);
+  setTimeout(refreshStatus, 2500);
+  setTimeout(refreshBackups, 2500);
+}
+
+async function deleteBackup(name) {
+  if (!confirm(`Apagar o backup "${name}"?`)) return;
+  const r = await postJSON("/api/backups/delete", { name });
+  toast(r.ok ? "Backup apagado" : `Erro: ${r.error || "falha"}`, !r.ok);
+  refreshBackups();
+}
+
+$("#backup-create").onclick = async () => {
+  toast("Criando backup… aguarde");
+  const r = await postJSON("/api/backups/create", {});
+  toast(r.ok ? `Backup criado: ${r.name}` : `Erro: ${r.error || "falha"}`, !r.ok);
+  refreshBackups();
+};
 
 // --------------------------------------------------------------------------- //
 // Loop de atualização
@@ -310,7 +431,10 @@ refreshStatus();
 refreshLogs();
 refreshAllowlist();
 refreshSeen();
+loadProperties();
+refreshBackups();
 setInterval(refreshStatus, 8000);
 setInterval(refreshLogs, 5000);
 setInterval(refreshAllowlist, 20000);
 setInterval(refreshSeen, 30000);
+setInterval(refreshBackups, 30000);
