@@ -126,9 +126,9 @@ def send_command(command: str, capture: bool = False, wait: float = 0.6):
     if container.status != "running":
         return {"ok": False, "error": "servidor não está rodando"}
 
-    before = b""
-    if capture:
-        before = container.logs(tail=1, timestamps=False)
+    # Marca o instante ANTES de enviar; depois lemos só os logs desse ponto em
+    # diante (confiável, sem depender de casar texto anterior).
+    since = datetime.now(timezone.utc) if capture else None
 
     # Encaminha a linha de comando VERBATIM como um único argumento. Assim o
     # script send-command repassa exatamente o texto ao console, preservando
@@ -142,13 +142,10 @@ def send_command(command: str, capture: bool = False, wait: float = 0.6):
     output = ""
     if capture:
         time.sleep(wait)
-        after = container.logs(tail=40, timestamps=False).decode("utf-8", "replace")
-        before_txt = before.decode("utf-8", "replace").strip()
-        # Mantém só o que veio depois da última linha conhecida.
-        if before_txt and before_txt in after:
-            output = after.split(before_txt, 1)[-1].strip()
-        else:
-            output = after.strip()
+        try:
+            output = container.logs(since=since, timestamps=False).decode("utf-8", "replace").strip()
+        except Exception:  # noqa: BLE001
+            output = ""
 
     exit_code = getattr(result, "exit_code", 0)
     return {"ok": exit_code == 0, "output": output, "exit_code": exit_code}
@@ -161,6 +158,36 @@ def _quote_name(name: str) -> str:
     """
     clean = name.replace('"', "").strip()
     return f'"{clean}"' if " " in clean else clean
+
+
+LOG_PREFIX_RE = re.compile(r"^\[[^\]]*\]\s*")
+
+
+def _clean_log_lines(raw: str):
+    """Remove o prefixo '[2026-... INFO]' e linhas vazias."""
+    lines = []
+    for ln in (raw or "").splitlines():
+        ln = LOG_PREFIX_RE.sub("", ln).strip()
+        if ln:
+            lines.append(ln)
+    return lines
+
+
+def summarize_response(raw: str, name: str = "") -> str:
+    """
+    Extrai a resposta relevante do jogo a partir do log capturado, p.ex.:
+    'Could not remove KingsizeSTRJ from the allowlist'. Ignora ruído.
+    """
+    keywords = ("allowlist", "could not", "added", "remove", "already", "no targets", "kicked")
+    relevant = []
+    for ln in _clean_log_lines(raw):
+        low = ln.lower()
+        if "reloaded from file" in low:
+            continue  # ruído do reload automático
+        if (name and name.lower() in low) or any(k in low for k in keywords):
+            if ln not in relevant:
+                relevant.append(ln)
+    return " | ".join(relevant[:3])
 
 
 # Eventos de entrada/saída que o Bedrock escreve no log, ex:
@@ -375,6 +402,40 @@ def api_players():
     return jsonify(list_players())
 
 
+@app.route("/api/seen-players")
+@login_required
+def api_seen_players():
+    """
+    Lista jogadores já vistos no console (eventos 'Player connected'), com seu
+    XUID, para adicionar à allowlist com um clique. Marca quem já está na lista.
+    """
+    container = get_container()
+    if container is None or container.status != "running":
+        return jsonify({"players": []})
+
+    try:
+        raw = container.logs(tail=5000, timestamps=False).decode("utf-8", "replace")
+    except Exception:  # noqa: BLE001
+        return jsonify({"players": []})
+
+    seen = {}  # name -> xuid (mantém a última ocorrência)
+    for line in raw.splitlines():
+        m = CONNECT_RE.search(line)
+        if m:
+            seen[m.group(1).strip()] = m.group(2)
+
+    allow_names = {
+        (e.get("name") or "").lower()
+        for e in read_allowlist()
+        if isinstance(e, dict)
+    }
+    players = [
+        {"name": n, "xuid": x, "in_allowlist": n.lower() in allow_names}
+        for n, x in seen.items()
+    ]
+    return jsonify({"players": players})
+
+
 @app.route("/api/allowlist", methods=["GET"])
 @login_required
 def api_allowlist_get():
@@ -409,6 +470,8 @@ def api_allowlist_post():
     res = send_command(f"allowlist {action} {_quote_name(name)}", capture=True)
     # Recarrega a allowlist no servidor para aplicar.
     send_command("allowlist reload")
+    # Mensagem real do jogo (ex.: "Could not remove X from the allowlist").
+    res["message"] = summarize_response(res.get("output", ""), name)
     return jsonify(res)
 
 
@@ -421,7 +484,9 @@ def api_kick():
     if not name:
         return jsonify({"ok": False, "error": "nome obrigatório"}), 400
     cmd = f"kick {_quote_name(name)}" + (f" {reason}" if reason else "")
-    return jsonify(send_command(cmd, capture=True))
+    res = send_command(cmd, capture=True)
+    res["message"] = summarize_response(res.get("output", ""), name)
+    return jsonify(res)
 
 
 @app.route("/api/quick", methods=["POST"])

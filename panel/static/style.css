@@ -150,6 +150,24 @@ button[type="submit"] {
 }
 .player-list .row-actions { display: flex; gap: 6px; }
 
+/* ---------- Bloco "vistos no console" ---------- */
+.seen-block { margin-top: 16px; border-top: 1px solid var(--border); padding-top: 12px; }
+.seen-block h3 { margin: 0; font-size: .95rem; }
+.player-list .xuid {
+  display: block;
+  font-size: .72rem;
+  color: var(--muted);
+  font-family: "SFMono-Regular", Consolas, monospace;
+}
+.player-list .pname { display: flex; flex-direction: column; }
+.badge {
+  font-size: .7rem;
+  padding: 2px 8px;
+  border-radius: 999px;
+  background: rgba(63,163,77,.2);
+  color: #6ee787;
+}
+
 /* ---------- Console ---------- */
 .console {
   background: #0a0e12;

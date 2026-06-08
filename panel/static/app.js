@@ -85,7 +85,8 @@ async function refreshStatus() {
 
 async function kickPlayer(name) {
   const r = await postJSON("/api/kick", { name });
-  toast(r.ok ? `Kickado: ${name}` : `Erro: ${r.error || "falha"}`, !r.ok);
+  const msg = r.message || (r.ok ? `Kickado: ${name}` : `Erro: ${r.error || "falha"}`);
+  toast(msg, !r.ok || /could not|no targets/i.test(r.message || ""));
   setTimeout(refreshStatus, 500);
 }
 
@@ -177,8 +178,55 @@ async function refreshAllowlist() {
 async function allowAction(action, name) {
   if (!name) return;
   const r = await postJSON("/api/allowlist", { action, name });
-  toast(r.ok ? `Allowlist atualizada (${action})` : `Erro: ${r.error || "falha"}`, !r.ok);
+  // Mostra a resposta REAL do servidor quando houver (ex.: "Could not remove…").
+  const msg = r.message || (r.ok ? `Allowlist atualizada (${action})` : `Erro: ${r.error || "falha"}`);
+  const isErr = !r.ok || /could not|no targets|error/i.test(r.message || "");
+  toast(msg, isErr);
   setTimeout(refreshAllowlist, 800);
+  setTimeout(refreshSeen, 800);
+}
+
+// --------------------------------------------------------------------------- //
+// Allowlist — jogadores vistos no console (com XUID, 1 clique)
+// --------------------------------------------------------------------------- //
+async function refreshSeen() {
+  const list = $("#seen-list");
+  try {
+    const res = await api("/api/seen-players");
+    const data = await res.json();
+    const players = data.players || [];
+    if (players.length === 0) {
+      list.innerHTML = '<li class="muted">Ninguém visto ainda (peça para tentarem entrar)</li>';
+      return;
+    }
+    list.innerHTML = "";
+    players.forEach((p) => {
+      const li = document.createElement("li");
+      const info = document.createElement("div");
+      info.className = "pname";
+      info.innerHTML = `<span>${p.name}</span><span class="xuid">xuid: ${p.xuid}</span>`;
+      li.appendChild(info);
+
+      const actions = document.createElement("div");
+      actions.className = "row-actions";
+      if (p.in_allowlist) {
+        const badge = document.createElement("span");
+        badge.className = "badge";
+        badge.textContent = "na lista";
+        actions.appendChild(badge);
+      } else {
+        const add = document.createElement("button");
+        add.className = "btn btn-green";
+        add.textContent = "+ Adicionar";
+        add.onclick = () => allowAction("add", p.name);
+        actions.appendChild(add);
+      }
+      li.appendChild(actions);
+      list.appendChild(li);
+    });
+  } catch (e) {
+    list.innerHTML = '<li class="muted">Erro ao carregar</li>';
+  }
 }
 
 // --------------------------------------------------------------------------- //
@@ -253,12 +301,16 @@ $("#btn-backup").onclick = async () => {
   }
 };
 
+$("#seen-refresh").onclick = refreshSeen;
+
 // --------------------------------------------------------------------------- //
 // Loop de atualização
 // --------------------------------------------------------------------------- //
 refreshStatus();
 refreshLogs();
 refreshAllowlist();
+refreshSeen();
 setInterval(refreshStatus, 8000);
 setInterval(refreshLogs, 5000);
 setInterval(refreshAllowlist, 20000);
+setInterval(refreshSeen, 30000);

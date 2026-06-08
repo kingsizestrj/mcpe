@@ -58,8 +58,10 @@ No Minecraft Bedrock → **Jogar → Servidores → Adicionar servidor**:
 - **Status** do servidor (rodando/parado, uptime, jogadores online).
 - **Iniciar / Reiniciar / Parar** o servidor.
 - **Jogadores online** com botão de **kick**.
-- **Allowlist**: **interruptor liga/desliga** (sem reiniciar) + adicionar/remover
-  jogadores permitidos (proteção principal).
+- **Allowlist**: **interruptor liga/desliga** (sem reiniciar), adicionar/remover
+  jogadores (mostra a **resposta real do servidor**, ex.: "Could not remove…") e
+  bloco **"Vistos no console"** para adicionar com 1 clique quem já tentou entrar
+  (mostrando o **XUID**).
 - **Ações rápidas**: mensagem (`say`), tempo, clima, dificuldade.
 - **Console ao vivo** + envio de qualquer comando (ex: `gamerule keepInventory true`).
 - **Backup do mundo** em `.tar.gz` (faz `save hold`/`save resume` automaticamente).
