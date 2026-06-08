@@ -8,7 +8,16 @@ set -uo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 ENV_FILE="$SCRIPT_DIR/../.env"
-[ -f "$ENV_FILE" ] && { set -a; . "$ENV_FILE"; set +a; }
+# Lê o .env de forma segura (sem executar; valores com espaço não quebram).
+load_env() {
+  [ -f "$ENV_FILE" ] || return 0
+  while IFS='=' read -r key val; do
+    case "$key" in ''|\#*|*' '*) continue ;; esac
+    val="${val%"${val##*[![:space:]]}"}"
+    [ -z "${!key+x}" ] && export "$key=$val"
+  done < "$ENV_FILE"
+}
+load_env
 
 PORT="${GAME_PORT:-19132}"
 CONTAINER="${BEDROCK_CONTAINER:-mc_bedrock_server}"

@@ -27,13 +27,19 @@
 # ===========================================================================
 set -euo pipefail
 
-# Carrega .env se existir (mesma pasta do projeto).
+# Carrega .env se existir (mesma pasta do projeto), de forma segura:
+# lê só pares CHAVE=VALOR, sem executar o conteúdo (valores com espaço ok).
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 ENV_FILE="$SCRIPT_DIR/../.env"
-if [ -f "$ENV_FILE" ]; then
-  # shellcheck disable=SC1090
-  set -a; . "$ENV_FILE"; set +a
-fi
+load_env() {
+  [ -f "$ENV_FILE" ] || return 0
+  while IFS='=' read -r key val; do
+    case "$key" in ''|\#*|*' '*) continue ;; esac   # pula vazias, comentários e chaves inválidas
+    val="${val%"${val##*[![:space:]]}"}"            # tira espaços ao final do valor
+    [ -z "${!key+x}" ] && export "$key=$val"        # não sobrescreve env já definido
+  done < "$ENV_FILE"
+}
+load_env
 
 PORT="${GAME_PORT:-19132}"
 RATE_ABOVE="${RATE_ABOVE:-80/sec}"
