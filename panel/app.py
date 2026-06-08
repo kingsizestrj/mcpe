@@ -19,7 +19,6 @@ import io
 import json
 import os
 import re
-import shlex
 import tarfile
 import time
 from datetime import datetime, timezone
@@ -131,7 +130,10 @@ def send_command(command: str, capture: bool = False, wait: float = 0.6):
     if capture:
         before = container.logs(tail=1, timestamps=False)
 
-    args = ["send-command"] + shlex.split(command)
+    # Encaminha a linha de comando VERBATIM como um único argumento. Assim o
+    # script send-command repassa exatamente o texto ao console, preservando
+    # aspas e espaços (ex.: nomes com espaço -> allowlist add "King Size").
+    args = ["send-command", command]
     try:
         result = container.exec_run(args, demux=False)
     except Exception as exc:  # noqa: BLE001
@@ -150,6 +152,15 @@ def send_command(command: str, capture: bool = False, wait: float = 0.6):
 
     exit_code = getattr(result, "exit_code", 0)
     return {"ok": exit_code == 0, "output": output, "exit_code": exit_code}
+
+
+def _quote_name(name: str) -> str:
+    """
+    Coloca aspas duplas em nomes com espaço (o console do Bedrock exige isso,
+    ex.: allowlist add "King Size"). Remove aspas internas por segurança.
+    """
+    clean = name.replace('"', "").strip()
+    return f'"{clean}"' if " " in clean else clean
 
 
 # Eventos de entrada/saída que o Bedrock escreve no log, ex:
@@ -331,7 +342,7 @@ def api_allowlist_post():
     name = (data.get("name") or "").strip()
     if action not in ("add", "remove") or not name:
         return jsonify({"ok": False, "error": "parâmetros inválidos"}), 400
-    res = send_command(f"allowlist {action} {shlex.quote(name)}", capture=True)
+    res = send_command(f"allowlist {action} {_quote_name(name)}", capture=True)
     # Recarrega a allowlist no servidor para aplicar.
     send_command("allowlist reload")
     return jsonify(res)
@@ -345,7 +356,7 @@ def api_kick():
     reason = (data.get("reason") or "").strip()
     if not name:
         return jsonify({"ok": False, "error": "nome obrigatório"}), 400
-    cmd = f"kick {name}" + (f" {reason}" if reason else "")
+    cmd = f"kick {_quote_name(name)}" + (f" {reason}" if reason else "")
     return jsonify(send_command(cmd, capture=True))
 
 
