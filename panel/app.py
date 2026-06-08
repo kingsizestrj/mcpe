@@ -232,6 +232,52 @@ def read_allowlist():
         return []
 
 
+def _props_path():
+    return os.path.join(DATA_DIR, "server.properties")
+
+
+def get_prop(key, default=None):
+    """Lê um valor do server.properties."""
+    path = _props_path()
+    try:
+        with open(path, "r", encoding="utf-8") as fh:
+            for line in fh:
+                line = line.strip()
+                if line.startswith(f"{key}="):
+                    return line.split("=", 1)[1]
+    except Exception:  # noqa: BLE001
+        pass
+    return default
+
+
+def set_prop(key, value):
+    """Escreve/atualiza um valor no server.properties (para persistir)."""
+    path = _props_path()
+    try:
+        lines = []
+        found = False
+        if os.path.exists(path):
+            with open(path, "r", encoding="utf-8") as fh:
+                lines = fh.readlines()
+        for i, line in enumerate(lines):
+            if line.strip().startswith(f"{key}="):
+                lines[i] = f"{key}={value}\n"
+                found = True
+                break
+        if not found:
+            lines.append(f"{key}={value}\n")
+        with open(path, "w", encoding="utf-8") as fh:
+            fh.writelines(lines)
+        return True
+    except Exception:  # noqa: BLE001
+        return False
+
+
+def allowlist_enabled():
+    """Estado atual da allowlist (allow-list no server.properties)."""
+    return str(get_prop("allow-list", "false")).lower() == "true"
+
+
 # --------------------------------------------------------------------------- #
 # Páginas
 # --------------------------------------------------------------------------- #
@@ -272,6 +318,7 @@ def api_status():
     else:
         info["players"] = {"online": 0, "max": 0, "names": []}
 
+    info["allowlist_enabled"] = allowlist_enabled()
     return jsonify(info)
 
 
@@ -331,7 +378,24 @@ def api_players():
 @app.route("/api/allowlist", methods=["GET"])
 @login_required
 def api_allowlist_get():
-    return jsonify({"entries": read_allowlist()})
+    return jsonify({"entries": read_allowlist(), "enabled": allowlist_enabled()})
+
+
+@app.route("/api/allowlist/toggle", methods=["POST"])
+@login_required
+def api_allowlist_toggle():
+    """Liga/desliga a allowlist em tempo real e persiste no server.properties."""
+    data = request.get_json(silent=True) or {}
+    enabled = bool(data.get("enabled"))
+
+    # Efeito imediato no servidor (sem reiniciar).
+    res = send_command("allowlist on" if enabled else "allowlist off", capture=True)
+    if not res.get("ok"):
+        return jsonify({"ok": False, "error": res.get("error", "falha ao enviar comando")}), 500
+
+    # Persiste para sobreviver a reinícios do container.
+    set_prop("allow-list", "true" if enabled else "false")
+    return jsonify({"ok": True, "enabled": enabled, "output": res.get("output", "")})
 
 
 @app.route("/api/allowlist", methods=["POST"])

@@ -14,8 +14,11 @@ services:
       - MAX_PLAYERS=${MAX_PLAYERS:-10}
 
       # ----- Proteção / controle de acesso -----
-      # Allowlist (lista de permitidos). Só quem está na lista entra.
-      - ALLOW_LIST=${ALLOW_LIST:-true}
+      # A allowlist (allow-list) NÃO é forçada aqui de propósito: ela é
+      # controlada pelo PAINEL (botão liga/desliga) e persistida no
+      # server.properties. Assim o estado do painel sobrevive a reinícios.
+      # (Se quiser forçar um padrão fixo, adicione: - ALLOW_LIST=true)
+      #
       # Lista inicial de jogadores permitidos: "Gamertag:XUID,OutroGamertag:XUID"
       # Pode deixar vazio e adicionar pelo painel depois.
       - ALLOW_LIST_USERS=${ALLOW_LIST_USERS:-}

@@ -79,8 +79,16 @@
 
     <!-- Allowlist -->
     <section class="card">
-      <h2>Allowlist (lista de permitidos)</h2>
-      <p class="muted">Só quem está aqui consegue entrar (proteção principal do servidor).</p>
+      <div class="card-head">
+        <h2>Allowlist (lista de permitidos)</h2>
+        <label class="switch" title="Liga/desliga a allowlist sem reiniciar">
+          <input type="checkbox" id="allow-toggle">
+          <span class="slider"></span>
+          <span id="allow-toggle-label" class="switch-label">—</span>
+        </label>
+      </div>
+      <p class="muted">Quando <b>ligada</b>, só quem está nesta lista consegue entrar.
+        Quando <b>desligada</b>, qualquer um (autenticado) entra.</p>
       <div class="inline">
         <input id="allow-name" type="text" placeholder="Gamertag do jogador">
         <button class="btn btn-green" id="allow-add">Adicionar</button>

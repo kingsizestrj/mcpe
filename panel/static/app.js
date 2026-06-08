@@ -57,6 +57,8 @@ async function refreshStatus() {
     const players = data.players || { online: 0, max: 0, names: [] };
     $("#stat-players").textContent = `${players.online}/${players.max || "?"}`;
 
+    if (typeof data.allowlist_enabled === "boolean") setToggle(data.allowlist_enabled);
+
     const list = $("#players-list");
     if (!players.names || players.names.length === 0) {
       list.innerHTML = '<li class="muted">Nenhum jogador online</li>';
@@ -104,7 +106,43 @@ async function refreshLogs() {
 }
 
 // --------------------------------------------------------------------------- //
-// Allowlist
+// Allowlist — interruptor liga/desliga
+// --------------------------------------------------------------------------- //
+let toggleBusy = false;
+
+function setToggle(enabled) {
+  if (toggleBusy) return; // não sobrescreve enquanto o usuário aciona
+  const cb = $("#allow-toggle");
+  cb.checked = enabled;
+  const label = $("#allow-toggle-label");
+  label.textContent = enabled ? "Ligada" : "Desligada";
+  label.style.color = enabled ? "#6ee787" : "var(--muted)";
+}
+
+$("#allow-toggle").addEventListener("change", async (e) => {
+  const enabled = e.target.checked;
+  toggleBusy = true;
+  $("#allow-toggle").disabled = true;
+  try {
+    const r = await postJSON("/api/allowlist/toggle", { enabled });
+    if (r.ok) {
+      toast(`Allowlist ${enabled ? "LIGADA" : "DESLIGADA"}`);
+    } else {
+      toast(`Erro: ${r.error || "falha"}`, true);
+      e.target.checked = !enabled; // reverte visual
+    }
+  } catch (err) {
+    e.target.checked = !enabled;
+    toast("Erro ao alternar", true);
+  } finally {
+    $("#allow-toggle").disabled = false;
+    toggleBusy = false;
+    setToggle(e.target.checked);
+  }
+});
+
+// --------------------------------------------------------------------------- //
+// Allowlist — lista de jogadores
 // --------------------------------------------------------------------------- //
 async function refreshAllowlist() {
   try {

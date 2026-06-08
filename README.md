@@ -58,7 +58,8 @@ No Minecraft Bedrock → **Jogar → Servidores → Adicionar servidor**:
 - **Status** do servidor (rodando/parado, uptime, jogadores online).
 - **Iniciar / Reiniciar / Parar** o servidor.
 - **Jogadores online** com botão de **kick**.
-- **Allowlist**: adicionar/remover jogadores permitidos (proteção principal).
+- **Allowlist**: **interruptor liga/desliga** (sem reiniciar) + adicionar/remover
+  jogadores permitidos (proteção principal).
 - **Ações rápidas**: mensagem (`say`), tempo, clima, dificuldade.
 - **Console ao vivo** + envio de qualquer comando (ex: `gamerule keepInventory true`).
 - **Backup do mundo** em `.tar.gz` (faz `save hold`/`save resume` automaticamente).
@@ -69,8 +70,9 @@ No Minecraft Bedrock → **Jogar → Servidores → Adicionar servidor**:
 
 O projeto usa **várias camadas** de proteção:
 
-1. **Allowlist (lista de permitidos)** — `ALLOW_LIST=true`.
-   Só quem você adicionar entra no servidor. Gerenciável pelo painel.
+1. **Allowlist (lista de permitidos)** — controlada pelo **painel** (interruptor
+   liga/desliga, em tempo real, sem reiniciar) e persistida no `server.properties`.
+   Só quem você adicionar entra no servidor.
 
 2. **Online Mode** — `ONLINE_MODE=true`.
    Exige que o jogador esteja autenticado numa conta **Xbox Live real**,
@@ -114,13 +116,12 @@ Encaminhe a porta **UDP `19132`** para o **IP local** da máquina do lab (ex: `1
 - Porta externa e interna: `19132`
 - O DDNS do seu roteador já mantém o domínio apontando para o IP atual. ✅
 
-**2. Confirme o online mode e a allowlist (já vêm ligados)**
-No `.env`, mantenha:
-```env
-ONLINE_MODE=true   # exige conta Xbox Live real (bloqueia clientes falsos)
-ALLOW_LIST=true    # só quem você liberar entra
-```
-Adicione seus amigos pelo painel (aba **Allowlist**) ou deixe-os tentar entrar uma
+**2. Confirme o online mode e a allowlist**
+- `ONLINE_MODE=true` no `.env` (exige conta Xbox Live real, bloqueia clientes falsos).
+- A **allowlist** você liga direto no **painel** (interruptor na seção Allowlist) —
+  não precisa mexer no `.env`.
+
+Adicione seus amigos pelo painel (seção **Allowlist**) ou deixe-os tentar entrar uma
 vez: o **XUID** deles aparece no **Console** do painel — adicione por ali. Essa é a
 **autenticação real** do servidor.
 
@@ -154,7 +155,7 @@ e rode `sudo ./scripts/harden-firewall.sh apply`. Aí **só** esses IPs alcança
 
 ### ✅ Checklist de segurança da exposição
 - [ ] Só a porta **`19132/udp`** está encaminhada no roteador (nada de TCP, nada do painel).
-- [ ] `ONLINE_MODE=true` e `ALLOW_LIST=true`.
+- [ ] `ONLINE_MODE=true` e allowlist **ligada no painel**.
 - [ ] Allowlist preenchida (de preferência por **XUID**).
 - [ ] `harden-firewall.sh apply` rodado (e systemd instalado para persistir).
 - [ ] Painel **NÃO** exposto: `PANEL_BIND=127.0.0.1` (acesso via túnel SSH).
@@ -265,4 +266,5 @@ docker exec mc_bedrock_server send-command "say Olá do terminal!"
   `send-command` que já vem na imagem, via socket do Docker.
 - O painel precisa do socket do Docker (`/var/run/docker.sock`) para controlar
   o container. Trate a máquina host como confiável e não exponha o painel.
-- A allowlist só passa a valer com `ALLOW_LIST=true` (padrão deste projeto).
+- A allowlist é ligada/desligada pelo **painel** (botão na seção Allowlist) e o
+  estado é gravado no `server.properties`, sobrevivendo a reinícios.
