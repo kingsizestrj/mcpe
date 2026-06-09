@@ -58,6 +58,7 @@ async function refreshStatus() {
     $("#stat-players").textContent = `${players.online}/${players.max || "?"}`;
 
     if (typeof data.allowlist_enabled === "boolean") setToggle(data.allowlist_enabled);
+    if (typeof data.notify_enabled === "boolean") updateNotifyUI(data.notify_enabled);
 
     const list = $("#players-list");
     if (!players.names || players.names.length === 0) {
@@ -425,6 +426,89 @@ $("#backup-create").onclick = async () => {
 };
 
 // --------------------------------------------------------------------------- //
+// Recursos (CPU/RAM)
+// --------------------------------------------------------------------------- //
+function setBar(barId, valId, pct, label) {
+  const bar = $(barId);
+  const v = Math.max(0, Math.min(100, pct || 0));
+  bar.style.width = v + "%";
+  bar.classList.toggle("warn", v >= 70 && v < 90);
+  bar.classList.toggle("crit", v >= 90);
+  $(valId).textContent = label;
+}
+
+async function refreshStats() {
+  try {
+    const res = await api("/api/stats");
+    const data = await res.json();
+    const c = data.current || {};
+    if (c.cpu == null) {
+      setBar("#res-cpu-bar", "#res-cpu-val", 0, "—");
+      setBar("#res-mem-bar", "#res-mem-val", 0, "—");
+    } else {
+      setBar("#res-cpu-bar", "#res-cpu-val", c.cpu, `${c.cpu}%`);
+      const memLabel = c.limit_mb
+        ? `${c.mem_pct}% (${c.mem_mb}/${c.limit_mb} MB)`
+        : `${c.mem_mb} MB`;
+      setBar("#res-mem-bar", "#res-mem-val", c.mem_pct, memLabel);
+    }
+    const spark = $("#res-spark");
+    spark.innerHTML = "";
+    (data.history || []).slice(-60).forEach((h) => {
+      const b = document.createElement("span");
+      b.style.height = Math.max(2, Math.min(100, h.cpu)) + "%";
+      spark.appendChild(b);
+    });
+  } catch (e) {
+    /* silencioso */
+  }
+}
+
+// --------------------------------------------------------------------------- //
+// Manutenção: versão + notificações
+// --------------------------------------------------------------------------- //
+async function loadVersion() {
+  try {
+    const res = await api("/api/version");
+    const d = await res.json();
+    const el = $("#ver-text");
+    if (!d.current) {
+      el.textContent = "desconhecida (servidor parado?)";
+    } else if (d.update_available) {
+      el.innerHTML = `${d.current} → <span class="ver-new">${d.latest} disponível</span>`;
+    } else if (d.latest) {
+      el.textContent = `${d.current} (atualizada)`;
+    } else {
+      el.textContent = `${d.current}`;
+    }
+    $("#ver-update").hidden = false;
+  } catch (e) {
+    $("#ver-text").textContent = "erro ao verificar";
+  }
+}
+
+$("#ver-update").onclick = async () => {
+  if (!confirm("Atualizar o servidor?\n\nFaz um backup, reinicia o container e baixa a última versão. Os jogadores cairão por ~1 min.")) return;
+  toast("Atualizando… backup + reinício");
+  const r = await postJSON("/api/version/update", {});
+  toast(r.ok ? "Reiniciando para aplicar a atualização…" : `Erro: ${r.error || "falha"}`, !r.ok);
+  setTimeout(refreshStatus, 3000);
+  setTimeout(loadVersion, 8000);
+};
+
+function updateNotifyUI(enabled) {
+  $("#notify-text").textContent = enabled
+    ? "configurado ✓"
+    : "desativado (configure no .env)";
+  $("#notify-test").disabled = !enabled;
+}
+
+$("#notify-test").onclick = async () => {
+  const r = await postJSON("/api/notify/test", {});
+  toast(r.ok ? "Notificação enviada!" : `Erro: ${r.error || "falha"}`, !r.ok);
+};
+
+// --------------------------------------------------------------------------- //
 // Loop de atualização
 // --------------------------------------------------------------------------- //
 refreshStatus();
@@ -433,8 +517,11 @@ refreshAllowlist();
 refreshSeen();
 loadProperties();
 refreshBackups();
+refreshStats();
+loadVersion();
 setInterval(refreshStatus, 8000);
 setInterval(refreshLogs, 5000);
 setInterval(refreshAllowlist, 20000);
 setInterval(refreshSeen, 30000);
 setInterval(refreshBackups, 30000);
+setInterval(refreshStats, 15000);

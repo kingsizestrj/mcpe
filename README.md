@@ -68,6 +68,13 @@ No Minecraft Bedrock → **Jogar → Servidores → Adicionar servidor**:
   permissão padrão…) com "Salvar e reiniciar".
 - **Backups**: criar agora, **backups automáticos agendados** com retenção,
   **baixar**, **restaurar** (com backup de segurança automático antes) e apagar.
+- **Monitor de recursos**: uso de **CPU/RAM** ao vivo, com mini-gráfico e
+  **alerta** quando passa do limite (útil em hardware modesto como o Umbrel).
+- **Notificações no celular** (Discord/Telegram): avisa quando o servidor
+  **cai/volta**, quando alguém **entra/sai** e quando aparece **erro** ou
+  **sobrecarga**.
+- **Versão**: mostra a versão atual, avisa quando há **nova** e **atualiza** com
+  **backup automático antes** (reinicia e baixa a última).
 - **Console ao vivo** + envio de qualquer comando (ex: `gamerule keepInventory true`).
 
 ---
@@ -249,6 +256,41 @@ BACKUP_KEEP=7              # mantém os 7 mais recentes
 > O editor de configurações e a allowlist gravam no `server.properties`. Por isso o
 > `docker-compose.yml` **não** define mais `GAMEMODE`, `DIFFICULTY`, `ONLINE_MODE`,
 > etc. via env (senão um restart sobrescreveria o que você ajustou no painel).
+
+---
+
+## 🔔 Notificações & monitoramento
+
+O painel monitora CPU/RAM e o estado do servidor em segundo plano. Para receber
+avisos no celular, configure **um** canal no `.env`:
+
+**Discord** (mais fácil): no canal, *Editar canal → Integrações → Webhooks →
+Novo Webhook → Copiar URL*:
+```env
+NOTIFY_DISCORD_WEBHOOK=https://discord.com/api/webhooks/....
+```
+
+**Telegram**: crie um bot com o [@BotFather](https://t.me/BotFather), pegue o token,
+e descubra seu `chat_id` (mande uma mensagem ao bot e veja em
+`https://api.telegram.org/bot<token>/getUpdates`, ou use [@userinfobot](https://t.me/userinfobot)):
+```env
+NOTIFY_TELEGRAM_TOKEN=123456:ABC...
+NOTIFY_TELEGRAM_CHAT=987654321
+```
+
+Você recebe avisos de: servidor **caiu/voltou**, **sobrecarga** de CPU/RAM,
+jogador **entrou/saiu** (`NOTIFY_PLAYERS`) e **erros** no log (`NOTIFY_ERRORS`).
+Use o botão **"Enviar teste"** no card *Manutenção* para conferir.
+
+Limites de alerta e frequência:
+```env
+MONITOR_INTERVAL=30   # segundos entre amostras de CPU/RAM
+CPU_ALERT=90          # alerta acima de 90% de CPU
+MEM_ALERT=90          # alerta acima de 90% de RAM
+```
+
+> O painel precisa de acesso de saída à internet para Discord/Telegram (depende
+> da política de rede do seu ambiente).
 
 ---
 

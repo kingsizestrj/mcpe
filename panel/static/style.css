@@ -168,6 +168,51 @@ button[type="submit"] {
   color: #6ee787;
 }
 
+/* ---------- Recursos (CPU/RAM) ---------- */
+.res-grid { display: grid; gap: 12px; }
+.res-top { display: flex; justify-content: space-between; font-size: .9rem; margin-bottom: 5px; }
+.res-label { color: var(--muted); text-transform: uppercase; font-size: .75rem; }
+.res-bar {
+  height: 10px;
+  background: var(--card-2);
+  border-radius: 999px;
+  overflow: hidden;
+}
+.res-fill {
+  height: 100%;
+  width: 0%;
+  background: var(--green);
+  border-radius: 999px;
+  transition: width .4s, background .4s;
+}
+.res-fill.warn { background: var(--yellow); }
+.res-fill.crit { background: var(--red); }
+.res-spark {
+  display: flex;
+  align-items: flex-end;
+  gap: 2px;
+  height: 40px;
+  margin-top: 14px;
+}
+.res-spark span {
+  flex: 1;
+  background: var(--accent);
+  border-radius: 2px 2px 0 0;
+  min-height: 1px;
+  opacity: .7;
+}
+
+/* ---------- Manutenção ---------- */
+.maint-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 10px 0;
+}
+.maint-row + .maint-row { border-top: 1px solid var(--border); }
+.ver-new { color: var(--yellow); font-weight: 600; }
+
 /* ---------- Editor de propriedades ---------- */
 .props-grid {
   display: grid;

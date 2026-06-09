@@ -45,6 +45,17 @@ services:
       - BACKUP_INTERVAL_HOURS=${BACKUP_INTERVAL_HOURS:-0}
       # Quantos backups manter (apaga os mais antigos).
       - BACKUP_KEEP=${BACKUP_KEEP:-7}
+      # Monitor de recursos: intervalo (s) e limites de alerta (%).
+      - MONITOR_INTERVAL=${MONITOR_INTERVAL:-30}
+      - CPU_ALERT=${CPU_ALERT:-90}
+      - MEM_ALERT=${MEM_ALERT:-90}
+      # Notificações (opcional). Configure ao menos um canal para ativar.
+      - NOTIFY_DISCORD_WEBHOOK=${NOTIFY_DISCORD_WEBHOOK:-}
+      - NOTIFY_TELEGRAM_TOKEN=${NOTIFY_TELEGRAM_TOKEN:-}
+      - NOTIFY_TELEGRAM_CHAT=${NOTIFY_TELEGRAM_CHAT:-}
+      # Avisar entradas/saídas de jogadores e erros do log.
+      - NOTIFY_PLAYERS=${NOTIFY_PLAYERS:-true}
+      - NOTIFY_ERRORS=${NOTIFY_ERRORS:-true}
     ports:
       # Por padrão escuta só no localhost (127.0.0.1) por segurança.
       # Para acessar de outra máquina da LAN, troque por "8080:8080" no .env.

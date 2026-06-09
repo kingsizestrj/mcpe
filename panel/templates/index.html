@@ -31,10 +31,45 @@
       </div>
     </section>
 
+    <!-- Recursos (CPU/RAM) -->
+    <section class="card">
+      <h2>Recursos</h2>
+      <div class="res-grid">
+        <div class="res-item">
+          <div class="res-top"><span class="res-label">CPU</span><span id="res-cpu-val">—</span></div>
+          <div class="res-bar"><div id="res-cpu-bar" class="res-fill"></div></div>
+        </div>
+        <div class="res-item">
+          <div class="res-top"><span class="res-label">RAM</span><span id="res-mem-val">—</span></div>
+          <div class="res-bar"><div id="res-mem-bar" class="res-fill"></div></div>
+        </div>
+      </div>
+      <div id="res-spark" class="res-spark" title="CPU nos últimos minutos"></div>
+    </section>
+
     <!-- Jogadores online -->
     <section class="card">
       <h2>Jogadores online</h2>
       <ul id="players-list" class="player-list"><li class="muted">—</li></ul>
+    </section>
+
+    <!-- Manutenção: versão + notificações -->
+    <section class="card">
+      <h2>Manutenção</h2>
+      <div class="maint-row">
+        <div>
+          <div class="muted">Versão do servidor</div>
+          <div id="ver-text">verificando…</div>
+        </div>
+        <button class="btn btn-yellow" id="ver-update" hidden>⬆ Atualizar (backup + reinício)</button>
+      </div>
+      <div class="maint-row">
+        <div>
+          <div class="muted">Notificações (celular)</div>
+          <div id="notify-text">—</div>
+        </div>
+        <button class="btn" id="notify-test">Enviar teste</button>
+      </div>
     </section>
 
     <!-- Ações rápidas -->
