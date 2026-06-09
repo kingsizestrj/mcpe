@@ -1,0 +1,25 @@
+# ===========================================================================
+# Reaplica a blindagem de firewall automaticamente após o Docker iniciar.
+#
+# Instalação (ajuste o caminho ABSOLUTO do projeto em ExecStart):
+#   sudo cp scripts/mc-bedrock-harden.service /etc/systemd/system/
+#   sudo nano /etc/systemd/system/mc-bedrock-harden.service   # ajuste o caminho
+#   sudo systemctl daemon-reload
+#   sudo systemctl enable --now mc-bedrock-harden.service
+#
+# Conferir:  sudo systemctl status mc-bedrock-harden.service
+# ===========================================================================
+[Unit]
+Description=Blindagem de firewall do Minecraft Bedrock
+After=docker.service
+Requires=docker.service
+
+[Service]
+Type=oneshot
+RemainAfterExit=yes
+# >>> Ajuste para o caminho absoluto onde você clonou o projeto <<<
+ExecStart=/opt/mcpe/scripts/harden-firewall.sh apply
+ExecStop=/opt/mcpe/scripts/harden-firewall.sh remove
+
+[Install]
+WantedBy=multi-user.target

@@ -1,0 +1,337 @@
+:root {
+  --bg: #0f1419;
+  --card: #1a2129;
+  --card-2: #232c36;
+  --text: #e6edf3;
+  --muted: #8b98a5;
+  --accent: #4a9d5b;
+  --border: #2d3742;
+  --green: #3fa34d;
+  --yellow: #c9a227;
+  --red: #c0392b;
+}
+
+* { box-sizing: border-box; }
+
+body {
+  margin: 0;
+  font-family: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+  background: var(--bg);
+  color: var(--text);
+  line-height: 1.5;
+}
+
+/* ---------- Login ---------- */
+.login-page {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 100vh;
+}
+.login-card {
+  background: var(--card);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  padding: 32px;
+  width: min(360px, 92vw);
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+.login-card h1 { margin: 0; font-size: 1.4rem; }
+.login-card label { display: flex; flex-direction: column; gap: 6px; font-size: .9rem; }
+.login-card input {
+  padding: 10px;
+  border-radius: 8px;
+  border: 1px solid var(--border);
+  background: var(--card-2);
+  color: var(--text);
+}
+
+/* ---------- Layout ---------- */
+.topbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 14px 20px;
+  background: var(--card);
+  border-bottom: 1px solid var(--border);
+}
+.topbar h1 { font-size: 1.2rem; margin: 0; }
+.topbar-right { display: flex; align-items: center; gap: 12px; }
+
+.container {
+  max-width: 900px;
+  margin: 0 auto;
+  padding: 20px;
+  display: grid;
+  gap: 18px;
+}
+
+.card {
+  background: var(--card);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  padding: 18px 20px;
+}
+.card h2 { margin: 0 0 12px; font-size: 1.05rem; }
+
+.muted { color: var(--muted); font-size: .9rem; }
+
+/* ---------- Stats ---------- */
+.stats {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 12px;
+  margin-bottom: 14px;
+}
+.stats > div {
+  background: var(--card-2);
+  border-radius: 8px;
+  padding: 10px 12px;
+  display: flex;
+  flex-direction: column;
+}
+.stat-label { color: var(--muted); font-size: .75rem; text-transform: uppercase; }
+
+/* ---------- Buttons ---------- */
+.actions { display: flex; flex-wrap: wrap; gap: 10px; }
+.btn {
+  cursor: pointer;
+  border: 1px solid var(--border);
+  background: var(--card-2);
+  color: var(--text);
+  padding: 9px 14px;
+  border-radius: 8px;
+  font-size: .9rem;
+  transition: filter .15s;
+}
+.btn:hover { filter: brightness(1.2); }
+.btn:active { transform: translateY(1px); }
+.btn-green { background: var(--green); border-color: var(--green); }
+.btn-yellow { background: var(--yellow); border-color: var(--yellow); color: #1a1a1a; }
+.btn-red { background: var(--red); border-color: var(--red); }
+.btn-ghost { background: transparent; }
+
+button[type="submit"] {
+  cursor: pointer;
+  padding: 11px;
+  border-radius: 8px;
+  border: none;
+  background: var(--accent);
+  color: #fff;
+  font-size: 1rem;
+}
+
+/* ---------- Inline inputs ---------- */
+.inline { display: flex; gap: 8px; flex-wrap: wrap; align-items: center; }
+.inline input[type="text"] {
+  flex: 1;
+  min-width: 160px;
+  padding: 9px 11px;
+  border-radius: 8px;
+  border: 1px solid var(--border);
+  background: var(--card-2);
+  color: var(--text);
+}
+
+.quick-grid { display: grid; gap: 14px; }
+.quick-row label { display: block; font-size: .85rem; color: var(--muted); margin-bottom: 6px; }
+
+/* ---------- Lists ---------- */
+.player-list { list-style: none; margin: 12px 0 0; padding: 0; display: grid; gap: 6px; }
+.player-list li {
+  background: var(--card-2);
+  border-radius: 6px;
+  padding: 8px 12px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+.player-list .row-actions { display: flex; gap: 6px; }
+
+/* ---------- Bloco "vistos no console" ---------- */
+.seen-block { margin-top: 16px; border-top: 1px solid var(--border); padding-top: 12px; }
+.seen-block h3 { margin: 0; font-size: .95rem; }
+.player-list .xuid {
+  display: block;
+  font-size: .72rem;
+  color: var(--muted);
+  font-family: "SFMono-Regular", Consolas, monospace;
+}
+.player-list .pname { display: flex; flex-direction: column; }
+.badge {
+  font-size: .7rem;
+  padding: 2px 8px;
+  border-radius: 999px;
+  background: rgba(63,163,77,.2);
+  color: #6ee787;
+}
+
+/* ---------- Recursos (CPU/RAM) ---------- */
+.res-grid { display: grid; gap: 12px; }
+.res-top { display: flex; justify-content: space-between; font-size: .9rem; margin-bottom: 5px; }
+.res-label { color: var(--muted); text-transform: uppercase; font-size: .75rem; }
+.res-bar {
+  height: 10px;
+  background: var(--card-2);
+  border-radius: 999px;
+  overflow: hidden;
+}
+.res-fill {
+  height: 100%;
+  width: 0%;
+  background: var(--green);
+  border-radius: 999px;
+  transition: width .4s, background .4s;
+}
+.res-fill.warn { background: var(--yellow); }
+.res-fill.crit { background: var(--red); }
+.res-spark {
+  display: flex;
+  align-items: flex-end;
+  gap: 2px;
+  height: 40px;
+  margin-top: 14px;
+}
+.res-spark span {
+  flex: 1;
+  background: var(--accent);
+  border-radius: 2px 2px 0 0;
+  min-height: 1px;
+  opacity: .7;
+}
+
+/* ---------- Manutenção ---------- */
+.maint-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 10px 0;
+}
+.maint-row + .maint-row { border-top: 1px solid var(--border); }
+.ver-new { color: var(--yellow); font-weight: 600; }
+
+/* ---------- Editor de propriedades ---------- */
+.props-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+  gap: 12px;
+  margin-bottom: 14px;
+}
+.props-grid .field { display: flex; flex-direction: column; gap: 5px; }
+.props-grid label { font-size: .8rem; color: var(--muted); }
+.props-grid input[type="text"],
+.props-grid input[type="number"],
+.props-grid select {
+  padding: 8px 10px;
+  border-radius: 8px;
+  border: 1px solid var(--border);
+  background: var(--card-2);
+  color: var(--text);
+}
+.props-grid .field-bool {
+  flex-direction: row;
+  align-items: center;
+  gap: 8px;
+}
+
+/* ---------- Backups ---------- */
+.backup-meta { font-size: .75rem; color: var(--muted); }
+.player-list .bname { display: flex; flex-direction: column; }
+
+/* ---------- Console ---------- */
+.console {
+  background: #0a0e12;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 12px;
+  height: 280px;
+  overflow-y: auto;
+  font-family: "SFMono-Regular", Consolas, monospace;
+  font-size: .8rem;
+  white-space: pre-wrap;
+  word-break: break-word;
+  margin: 0 0 12px;
+}
+
+/* ---------- Card head com switch ---------- */
+.card-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 12px;
+}
+.card-head h2 { margin: 0; }
+
+/* ---------- Toggle switch ---------- */
+.switch {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  cursor: pointer;
+  user-select: none;
+}
+.switch input { display: none; }
+.switch .slider {
+  position: relative;
+  width: 44px;
+  height: 24px;
+  background: var(--card-2);
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  transition: background .2s;
+  flex-shrink: 0;
+}
+.switch .slider::before {
+  content: "";
+  position: absolute;
+  top: 2px;
+  left: 2px;
+  width: 18px;
+  height: 18px;
+  background: var(--muted);
+  border-radius: 50%;
+  transition: transform .2s, background .2s;
+}
+.switch input:checked + .slider { background: var(--green); border-color: var(--green); }
+.switch input:checked + .slider::before { transform: translateX(20px); background: #fff; }
+.switch-label { font-size: .85rem; color: var(--muted); min-width: 64px; }
+
+/* ---------- Pills / status ---------- */
+.pill {
+  padding: 4px 12px;
+  border-radius: 999px;
+  font-size: .8rem;
+  font-weight: 600;
+}
+.pill-running { background: rgba(63,163,77,.2); color: #6ee787; }
+.pill-stopped { background: rgba(192,57,43,.2); color: #ff7b72; }
+.pill-unknown { background: rgba(139,152,165,.2); color: var(--muted); }
+
+/* ---------- Toast / alert ---------- */
+.alert {
+  background: rgba(192,57,43,.18);
+  border: 1px solid var(--red);
+  color: #ff9a90;
+  padding: 9px 12px;
+  border-radius: 8px;
+  font-size: .9rem;
+}
+.toast {
+  position: fixed;
+  bottom: 20px;
+  left: 50%;
+  transform: translateX(-50%) translateY(80px);
+  background: var(--card-2);
+  border: 1px solid var(--border);
+  padding: 11px 18px;
+  border-radius: 10px;
+  opacity: 0;
+  transition: all .25s;
+  pointer-events: none;
+}
+.toast.show { opacity: 1; transform: translateX(-50%) translateY(0); }
+.toast.err { border-color: var(--red); }

@@ -1,0 +1,15 @@
+# Dados do servidor Minecraft (mundo, configs geradas, allowlist real)
+/data/
+
+# Variáveis de ambiente com senhas/segredos
+.env
+
+# Backups
+*.tar.gz
+/backups/
+
+# Python
+__pycache__/
+*.pyc
+.venv/
+venv/

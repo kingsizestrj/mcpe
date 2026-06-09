@@ -1,0 +1,178 @@
+<!DOCTYPE html>
+<html lang="pt-br">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Painel Bedrock</title>
+  <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+</head>
+<body>
+  <header class="topbar">
+    <h1>⛏️ Painel Bedrock</h1>
+    <div class="topbar-right">
+      <span id="status-pill" class="pill pill-unknown">verificando…</span>
+      <a class="btn btn-ghost" href="{{ url_for('logout') }}">Sair</a>
+    </div>
+  </header>
+
+  <main class="container">
+    <!-- Controle do servidor -->
+    <section class="card">
+      <h2>Servidor</h2>
+      <div class="stats">
+        <div><span class="stat-label">Estado</span><span id="stat-state">—</span></div>
+        <div><span class="stat-label">Uptime</span><span id="stat-uptime">—</span></div>
+        <div><span class="stat-label">Jogadores</span><span id="stat-players">—</span></div>
+      </div>
+      <div class="actions">
+        <button class="btn btn-green" data-action="start">▶ Iniciar</button>
+        <button class="btn btn-yellow" data-action="restart">⟳ Reiniciar</button>
+        <button class="btn btn-red" data-action="stop">■ Parar</button>
+      </div>
+    </section>
+
+    <!-- Recursos (CPU/RAM) -->
+    <section class="card">
+      <h2>Recursos</h2>
+      <div class="res-grid">
+        <div class="res-item">
+          <div class="res-top"><span class="res-label">CPU</span><span id="res-cpu-val">—</span></div>
+          <div class="res-bar"><div id="res-cpu-bar" class="res-fill"></div></div>
+        </div>
+        <div class="res-item">
+          <div class="res-top"><span class="res-label">RAM</span><span id="res-mem-val">—</span></div>
+          <div class="res-bar"><div id="res-mem-bar" class="res-fill"></div></div>
+        </div>
+      </div>
+      <div id="res-spark" class="res-spark" title="CPU nos últimos minutos"></div>
+    </section>
+
+    <!-- Jogadores online -->
+    <section class="card">
+      <h2>Jogadores online</h2>
+      <ul id="players-list" class="player-list"><li class="muted">—</li></ul>
+    </section>
+
+    <!-- Manutenção: versão + notificações -->
+    <section class="card">
+      <h2>Manutenção</h2>
+      <div class="maint-row">
+        <div>
+          <div class="muted">Versão do servidor</div>
+          <div id="ver-text">verificando…</div>
+        </div>
+        <button class="btn btn-yellow" id="ver-update" hidden>⬆ Atualizar (backup + reinício)</button>
+      </div>
+      <div class="maint-row">
+        <div>
+          <div class="muted">Notificações (celular)</div>
+          <div id="notify-text">—</div>
+        </div>
+        <button class="btn" id="notify-test">Enviar teste</button>
+      </div>
+    </section>
+
+    <!-- Ações rápidas -->
+    <section class="card">
+      <h2>Ações rápidas</h2>
+      <div class="quick-grid">
+        <div class="quick-row">
+          <label>Mensagem (say)</label>
+          <div class="inline">
+            <input id="q-say" type="text" placeholder="Olá a todos!">
+            <button class="btn" data-quick="say" data-from="q-say">Enviar</button>
+          </div>
+        </div>
+        <div class="quick-row">
+          <label>Tempo</label>
+          <div class="inline">
+            <button class="btn" data-quick="time" data-value="day">Dia</button>
+            <button class="btn" data-quick="time" data-value="night">Noite</button>
+            <button class="btn" data-quick="time" data-value="noon">Meio-dia</button>
+          </div>
+        </div>
+        <div class="quick-row">
+          <label>Clima</label>
+          <div class="inline">
+            <button class="btn" data-quick="weather" data-value="clear">Limpo</button>
+            <button class="btn" data-quick="weather" data-value="rain">Chuva</button>
+            <button class="btn" data-quick="weather" data-value="thunder">Tempestade</button>
+          </div>
+        </div>
+        <div class="quick-row">
+          <label>Dificuldade</label>
+          <div class="inline">
+            <button class="btn" data-quick="difficulty" data-value="peaceful">Pacífico</button>
+            <button class="btn" data-quick="difficulty" data-value="easy">Fácil</button>
+            <button class="btn" data-quick="difficulty" data-value="normal">Normal</button>
+            <button class="btn" data-quick="difficulty" data-value="hard">Difícil</button>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- Allowlist -->
+    <section class="card">
+      <div class="card-head">
+        <h2>Allowlist (lista de permitidos)</h2>
+        <label class="switch" title="Liga/desliga a allowlist sem reiniciar">
+          <input type="checkbox" id="allow-toggle">
+          <span class="slider"></span>
+          <span id="allow-toggle-label" class="switch-label">—</span>
+        </label>
+      </div>
+      <p class="muted">Quando <b>ligada</b>, só quem está nesta lista consegue entrar.
+        Quando <b>desligada</b>, qualquer um (autenticado) entra.</p>
+      <div class="inline">
+        <input id="allow-name" type="text" placeholder="Gamertag do jogador">
+        <button class="btn btn-green" id="allow-add">Adicionar</button>
+      </div>
+      <ul id="allow-list" class="player-list"><li class="muted">—</li></ul>
+
+      <div class="seen-block">
+        <div class="card-head">
+          <h3>Vistos no console</h3>
+          <button class="btn" id="seen-refresh">↻ Atualizar</button>
+        </div>
+        <p class="muted">Quem já tentou entrar (com XUID). Clique para adicionar à allowlist.</p>
+        <ul id="seen-list" class="player-list"><li class="muted">Clique em Atualizar</li></ul>
+      </div>
+    </section>
+
+    <!-- Configurações do servidor (server.properties) -->
+    <section class="card">
+      <h2>Configurações do servidor</h2>
+      <p class="muted">Editam o <code>server.properties</code>. A maioria só vale
+        após reiniciar o servidor.</p>
+      <div id="props-form" class="props-grid"><span class="muted">carregando…</span></div>
+      <div class="actions">
+        <button class="btn btn-green" id="props-save">💾 Salvar e reiniciar</button>
+        <button class="btn" id="props-save-norestart">Salvar sem reiniciar</button>
+      </div>
+    </section>
+
+    <!-- Backups -->
+    <section class="card">
+      <div class="card-head">
+        <h2>Backups</h2>
+        <button class="btn btn-green" id="backup-create">+ Criar backup agora</button>
+      </div>
+      <p class="muted" id="backup-info">—</p>
+      <ul id="backup-list" class="player-list"><li class="muted">—</li></ul>
+    </section>
+
+    <!-- Console -->
+    <section class="card">
+      <h2>Console</h2>
+      <pre id="console" class="console">carregando logs…</pre>
+      <div class="inline">
+        <input id="cmd" type="text" placeholder="Digite um comando (ex: gamerule keepInventory true)">
+        <button class="btn" id="cmd-send">Enviar</button>
+      </div>
+    </section>
+  </main>
+
+  <div id="toast" class="toast"></div>
+  <script src="{{ url_for('static', filename='app.js') }}"></script>
+</body>
+</html>
